@@ -6,6 +6,10 @@ using Microsoft.IdentityModel.Tokens;
 using XSched.API.DbContexts;
 using XSched.API.Entities;
 using XSched.API.Helpers;
+using XSched.API.Orchestrators.Implementations;
+using XSched.API.Orchestrators.Interfaces;
+using XSched.API.Services.Implementations;
+using XSched.API.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +46,8 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddTransient<IAuthenticateOrchestrator, AuthenticateOrchestrator>();
+builder.Services.AddTransient<IJwtTokenService, JwtTokenService>();
 builder.Services.AddDbContext<XSchedDbContext>(options =>
 {
     options.UseSqlServer(configuration.GetConnectionString("XSchedDb"));
