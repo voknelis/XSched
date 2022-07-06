@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using XSched.API.DbContexts;
 using XSched.API.Entities;
 using XSched.API.Helpers;
+using XSched.API.Middlewares;
 using XSched.API.Orchestrators.Implementations;
 using XSched.API.Orchestrators.Interfaces;
 using XSched.API.Services.Implementations;
@@ -61,6 +62,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseFrontendExceptionMiddleware();
 
 app.UseHttpsRedirection();
 
