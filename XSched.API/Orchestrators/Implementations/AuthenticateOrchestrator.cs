@@ -76,13 +76,13 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
     public async Task<TokenResponse> RefreshToken(RefreshTokenModel model)
     {
         var principal = _tokenService.GetPrincipalFromExpiredToken(model.AccessToken);
-        if (principal == null) throw new Exception("Invalid access token");
+        if (principal == null) throw new FrontendException("Invalid access token");
 
         var userName = principal.Identity.Name;
         var user = await _userManager.FindByNameAsync(userName);
-        if (user == null) throw new Exception("User not found");
-        if (user.RefreshToken != model.RefreshToken) throw new Exception("Invalid refresh token");
-        if (user.RefreshTokenExpiry <= DateTime.Now) throw new Exception("Refresh token has expired");
+        if (user == null) throw new FrontendException("User not found");
+        if (user.RefreshToken != model.RefreshToken) throw new FrontendException("Invalid refresh token");
+        if (user.RefreshTokenExpiry <= DateTime.Now) throw new FrontendException("Refresh token has expired");
 
         var accessToken = _tokenService.GenerateAccessToken(principal.Claims);
         var accessTokenString = new JwtSecurityTokenHandler().WriteToken(accessToken);

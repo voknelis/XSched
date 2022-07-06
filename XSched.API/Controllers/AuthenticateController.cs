@@ -26,7 +26,7 @@ public class AuthenticateController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterModel model)
     {
         var userExists = await _userManager.FindByNameAsync(model.Username);
-        if (userExists != null) return BadRequest("User already exist");
+        if (userExists != null) throw new FrontendException("User already exist");
 
         var result = await _authenticateOrchestrator.Register(model);
         if (!result.Succeeded) return StatusCode(StatusCodes.Status500InternalServerError, result.Errors);
@@ -38,10 +38,10 @@ public class AuthenticateController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginModel model)
     {
         var user = await _userManager.FindByNameAsync(model.Username);
-        if (user == null) return BadRequest("Client not found");
+        if (user == null) throw new FrontendException("User not found");
 
         var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
-        if (!isPasswordValid) return BadRequest("Invalid login or password");
+        if (!isPasswordValid) throw new FrontendException("Invalid login or password");
 
         var tokenResponse = await _authenticateOrchestrator.Login(user);
         return Ok(tokenResponse);
@@ -50,7 +50,7 @@ public class AuthenticateController : ControllerBase
     [HttpPost("refresh-token")]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenModel model)
     {
-        if (model == null) return BadRequest("Access and refresh token should be specified");
+        if (model == null) throw new FrontendException("Access and refresh token should be specified");
         var tokenResponse = await _authenticateOrchestrator.RefreshToken(model);
         return Ok(tokenResponse);
     }
