@@ -9,7 +9,7 @@ public interface IAuthenticateOrchestrator
 {
     Task<IdentityResult> Register(RegisterModel model);
 
-    Task<TokenResponse> Login(ApplicationUser user);
+    Task<TokenResponse> Login(ApplicationUser user, ClientConnectionMetadata clientMeta);
 
-    Task<TokenResponse> RefreshToken(RefreshTokenModel model);
+    Task<TokenResponse> RefreshToken(RefreshTokenModel model, ClientConnectionMetadata clientMeta);
 }

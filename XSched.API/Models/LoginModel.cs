@@ -9,4 +9,7 @@ public class LoginModel
 
     [Required(ErrorMessage = "Password is required")]
     public string? Password { get; set; }
+
+    [Required]
+    public string? Fingerprint { get; set; }
 }

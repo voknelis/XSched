@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using XSched.API.Dtos;
 using XSched.API.Entities;
 using XSched.API.Models;
 using XSched.API.Orchestrators.Interfaces;
@@ -43,7 +44,8 @@ public class AuthenticateController : ControllerBase
         var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
         if (!isPasswordValid) throw new FrontendException("Invalid login or password");
 
-        var tokenResponse = await _authenticateOrchestrator.Login(user);
+        var clientMeta = GetClientMeta(model.Fingerprint);
+        var tokenResponse = await _authenticateOrchestrator.Login(user, clientMeta);
         return Ok(tokenResponse);
     }
 
@@ -51,7 +53,19 @@ public class AuthenticateController : ControllerBase
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenModel model)
     {
         if (model == null) throw new FrontendException("Access and refresh token should be specified");
-        var tokenResponse = await _authenticateOrchestrator.RefreshToken(model);
+
+        var clientMeta = GetClientMeta(model.Fingerprint);
+        var tokenResponse = await _authenticateOrchestrator.RefreshToken(model, clientMeta);
         return Ok(tokenResponse);
+    }
+
+    private ClientConnectionMetadata GetClientMeta(string fingerprint)
+    {
+        return new ClientConnectionMetadata()
+        {
+            Fingerprint = fingerprint,
+            UserAgent = HttpContext.Request.Headers["User-Agent"],
+            Ip = HttpContext.Connection.RemoteIpAddress.ToString()
+        };
     }
 }

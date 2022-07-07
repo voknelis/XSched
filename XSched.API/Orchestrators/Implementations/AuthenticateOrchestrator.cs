@@ -1,6 +1,8 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using XSched.API.DbContexts;
 using XSched.API.Dtos;
 using XSched.API.Entities;
 using XSched.API.Helpers;
@@ -17,17 +19,20 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IConfiguration _configuration;
     private readonly IJwtTokenService _tokenService;
+    private readonly XSchedDbContext _dbContext;
 
     public AuthenticateOrchestrator(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         IConfiguration configuration,
-        IJwtTokenService tokenService)
+        IJwtTokenService tokenService,
+        XSchedDbContext dbContext)
     {
         _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
         _roleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
 
@@ -43,7 +48,7 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
         return await _userManager.CreateAsync(newUser, model.Password);
     }
 
-    public async Task<TokenResponse> Login(ApplicationUser user)
+    public async Task<TokenResponse> Login(ApplicationUser user, ClientConnectionMetadata clientMeta)
     {
         var userRoles = await _userManager.GetRolesAsync(user);
 
@@ -59,11 +64,20 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
         var accessTokenString = new JwtSecurityTokenHandler().WriteToken(accessToken);
         var refreshToken = _tokenService.GenerateRefreshToken();
 
-        var refreshTokenValidityInDays = _configuration.GetJwtRefreshTokenValidity();
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiry = DateTime.Now.AddDays(refreshTokenValidityInDays);
+        var refreshTokenExpires = DateTime.Now.AddDays(_configuration.GetJwtRefreshTokenValidity());
 
-        await _userManager.UpdateAsync(user);
+        var refreshSession = new RefreshSession()
+        {
+            UserId = user.Id,
+            RefreshToken = refreshToken,
+            Created = DateTime.Now,
+            ExpiresIn = refreshTokenExpires,
+            Fingerprint = clientMeta.Fingerprint,
+            UserAgent = clientMeta.UserAgent,
+            Ip = clientMeta.Ip
+        };
+        _dbContext.RefreshSessions.Add(refreshSession);
+        await _dbContext.SaveChangesAsync();
 
         return new TokenResponse()
         {
@@ -73,7 +87,7 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
         };
     }
 
-    public async Task<TokenResponse> RefreshToken(RefreshTokenModel model)
+    public async Task<TokenResponse> RefreshToken(RefreshTokenModel model, ClientConnectionMetadata clientMeta)
     {
         var principal = _tokenService.GetPrincipalFromExpiredToken(model.AccessToken);
         if (principal == null) throw new FrontendException("Invalid access token");
@@ -81,15 +95,32 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
         var userName = principal.Identity.Name;
         var user = await _userManager.FindByNameAsync(userName);
         if (user == null) throw new FrontendException("User not found");
-        if (user.RefreshToken != model.RefreshToken) throw new FrontendException("Invalid refresh token");
-        if (user.RefreshTokenExpiry <= DateTime.Now) throw new FrontendException("Refresh token has expired");
+
+        var refreshSession = await _dbContext.RefreshSessions.FirstOrDefaultAsync(s =>
+            s.RefreshToken == model.RefreshToken && s.Fingerprint == model.Fingerprint);
+        if (refreshSession is null) throw new FrontendException("Invalid refresh session");
+        if (refreshSession.ExpiresIn <= DateTime.Now) throw new FrontendException("Refresh token has expired");
 
         var accessToken = _tokenService.GenerateAccessToken(principal.Claims);
         var accessTokenString = new JwtSecurityTokenHandler().WriteToken(accessToken);
         var refreshToken = _tokenService.GenerateRefreshToken();
 
-        user.RefreshToken = refreshToken;
-        await _userManager.UpdateAsync(user);
+        var refreshTokenExpires = DateTime.Now.AddDays(_configuration.GetJwtRefreshTokenValidity());
+
+        _dbContext.RefreshSessions.Remove(refreshSession);
+
+        var newRefreshSession = new RefreshSession()
+        {
+            UserId = user.Id,
+            RefreshToken = refreshToken,
+            Created = DateTime.Now,
+            ExpiresIn = refreshTokenExpires,
+            Fingerprint = clientMeta.Fingerprint,
+            UserAgent = clientMeta.UserAgent,
+            Ip = clientMeta.Ip
+        };
+        _dbContext.RefreshSessions.Add(newRefreshSession);
+        await _dbContext.SaveChangesAsync();
 
         return new TokenResponse()
         {
