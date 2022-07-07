@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using XSched.API.Dtos;
 using XSched.API.Helpers;
 using XSched.API.Services.Interfaces;
 
@@ -17,24 +18,33 @@ public class JwtTokenService : IJwtTokenService
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }
 
-    public JwtSecurityToken GenerateAccessToken(IEnumerable<Claim> claims)
+    public AccessTokenResult GenerateAccessToken(IEnumerable<Claim> claims)
     {
         var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration.GetJwtSecret()));
+        var tokenExpiresIn = DateTime.Now.AddHours(_configuration.GetJwtAccessTokenValidity());
         var token = new JwtSecurityToken(
             _configuration.GetJwtIssuer(),
             _configuration.GetJwtAudience(),
-            expires: DateTime.Now.AddHours(3),
+            expires: tokenExpiresIn,
             claims: claims,
             signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256));
-        return token;
+        return new AccessTokenResult
+        {
+            Token = token,
+            TokenString = new JwtSecurityTokenHandler().WriteToken(token)
+        };
     }
 
-    public string GenerateRefreshToken()
+    public RefreshTokenResult GenerateRefreshToken()
     {
         var randomNumber = new byte[64];
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomNumber);
-        return Convert.ToBase64String(randomNumber);
+        return new RefreshTokenResult
+        {
+            Token = Convert.ToBase64String(randomNumber),
+            ExpiresIn = DateTime.Now.AddDays(_configuration.GetJwtRefreshTokenValidity())
+        };
     }
 
     public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)

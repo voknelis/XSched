@@ -17,20 +17,17 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
-    private readonly IConfiguration _configuration;
     private readonly IJwtTokenService _tokenService;
     private readonly XSchedDbContext _dbContext;
 
     public AuthenticateOrchestrator(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
-        IConfiguration configuration,
         IJwtTokenService tokenService,
         XSchedDbContext dbContext)
     {
         _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
         _roleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
-        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
@@ -61,17 +58,14 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
         foreach (var userRole in userRoles) authClaims.Add(new Claim(ClaimTypes.Role, userRole));
 
         var accessToken = _tokenService.GenerateAccessToken(authClaims);
-        var accessTokenString = new JwtSecurityTokenHandler().WriteToken(accessToken);
         var refreshToken = _tokenService.GenerateRefreshToken();
-
-        var refreshTokenExpires = DateTime.Now.AddDays(_configuration.GetJwtRefreshTokenValidity());
 
         var refreshSession = new RefreshSession()
         {
             UserId = user.Id,
-            RefreshToken = refreshToken,
+            RefreshToken = refreshToken.Token,
             Created = DateTime.Now,
-            ExpiresIn = refreshTokenExpires,
+            ExpiresIn = refreshToken.ExpiresIn,
             Fingerprint = clientMeta.Fingerprint,
             UserAgent = clientMeta.UserAgent,
             Ip = clientMeta.Ip
@@ -81,9 +75,9 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
 
         return new TokenResponse()
         {
-            AccessToken = accessTokenString,
-            RefrestToken = refreshToken,
-            Expiration = accessToken.ValidTo
+            AccessToken = accessToken.TokenString,
+            RefrestToken = refreshToken.Token,
+            Expiration = accessToken.Token.ValidTo
         };
     }
 
@@ -102,19 +96,16 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
         if (refreshSession.ExpiresIn <= DateTime.Now) throw new FrontendException("Refresh token has expired");
 
         var accessToken = _tokenService.GenerateAccessToken(principal.Claims);
-        var accessTokenString = new JwtSecurityTokenHandler().WriteToken(accessToken);
         var refreshToken = _tokenService.GenerateRefreshToken();
-
-        var refreshTokenExpires = DateTime.Now.AddDays(_configuration.GetJwtRefreshTokenValidity());
 
         _dbContext.RefreshSessions.Remove(refreshSession);
 
         var newRefreshSession = new RefreshSession()
         {
             UserId = user.Id,
-            RefreshToken = refreshToken,
+            RefreshToken = refreshToken.Token,
             Created = DateTime.Now,
-            ExpiresIn = refreshTokenExpires,
+            ExpiresIn = refreshToken.ExpiresIn,
             Fingerprint = clientMeta.Fingerprint,
             UserAgent = clientMeta.UserAgent,
             Ip = clientMeta.Ip
@@ -124,9 +115,9 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
 
         return new TokenResponse()
         {
-            AccessToken = accessTokenString,
-            RefrestToken = refreshToken,
-            Expiration = accessToken.ValidTo
+            AccessToken = accessToken.TokenString,
+            RefrestToken = refreshToken.Token,
+            Expiration = accessToken.Token.ValidTo
         };
     }
 }
