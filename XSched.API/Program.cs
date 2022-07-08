@@ -1,10 +1,13 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.OData;
+using Microsoft.AspNetCore.OData.Batch;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using XSched.API.DbContexts;
 using XSched.API.Entities;
+using XSched.API.EntityDataModels;
 using XSched.API.Helpers;
 using XSched.API.Middlewares;
 using XSched.API.Orchestrators.Implementations;
@@ -19,7 +22,13 @@ var configuration = builder.Configuration;
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddOData(options =>
+        options.AddRouteComponents("odata", XSchedEntityDataModel.GetEntityDataModel(), new DefaultODataBatchHandler())
+            .Select().Expand().OrderBy().SetMaxTop(50).Count().Filter()
+    );
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -66,6 +75,9 @@ if (app.Environment.IsDevelopment())
 app.UseFrontendExceptionMiddleware();
 
 app.UseHttpsRedirection();
+
+app.UseODataBatching();
+app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
