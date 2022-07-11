@@ -4,10 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Deltas;
 using Microsoft.AspNetCore.OData.Query;
 using Microsoft.AspNetCore.OData.Routing.Controllers;
-using Microsoft.EntityFrameworkCore;
-using XSched.API.DbContexts;
 using XSched.API.Entities;
-using XSched.API.Models;
+using XSched.API.Orchestrators.Interfaces;
 
 namespace XSched.API.Controllers;
 
@@ -16,39 +14,32 @@ namespace XSched.API.Controllers;
 public class ProfilesController : ODataController
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly XSchedDbContext _dbContext;
+    private readonly IProfilesOrchestrator _profilesOrchestrator;
 
-    public ProfilesController(UserManager<ApplicationUser> userManager, XSchedDbContext dbContext)
+    public ProfilesController(UserManager<ApplicationUser> userManager, IProfilesOrchestrator profilesOrchestrator)
     {
         _userManager = userManager;
-        _dbContext = dbContext;
+        _profilesOrchestrator = profilesOrchestrator;
     }
 
     [HttpGet("profiles")]
     [EnableQuery]
     public async Task<IActionResult> GetUserProfiles()
     {
-        var username = HttpContext.User.Identity.Name;
+        var user = await GetCurrentUser();
+        if (user == null) return Unauthorized();
 
-        var user = await _userManager.FindByNameAsync(username);
-        if (user is null) return NotFound();
-
-        var profiles = await _dbContext.Profiles.Where(p => p.UserId == user.Id).ToListAsync();
-        return Ok(profiles);
+        return Ok(await _profilesOrchestrator.GetUserProfiles(user));
     }
 
     [HttpGet("profiles({profileId})")]
     [EnableQuery]
     public async Task<IActionResult> GetUserProfile(Guid profileId)
     {
-        var username = HttpContext.User.Identity.Name;
+        var user = await GetCurrentUser();
+        if (user == null) return Unauthorized();
 
-        var user = await _userManager.FindByNameAsync(username);
-        if (user is null) return NotFound();
-
-        var profile = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == user.Id && p.Id == profileId);
-        if (profile is null) return NotFound();
-        return Ok(profile);
+        return Ok(await _profilesOrchestrator.GetUserProfile(user, profileId));
     }
 
     [HttpPost("profiles")]
@@ -57,15 +48,10 @@ public class ProfilesController : ODataController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var username = HttpContext.User.Identity.Name;
+        var user = await GetCurrentUser();
+        if (user == null) return Unauthorized();
 
-        var user = await _userManager.FindByNameAsync(username);
-        if (user is null) return NotFound();
-
-        profile.UserId = user.Id;
-        _dbContext.Profiles.Add(profile);
-        await _dbContext.SaveChangesAsync();
-
+        await _profilesOrchestrator.CreateUserProfile(user, profile);
         return Created(profile);
     }
 
@@ -75,26 +61,10 @@ public class ProfilesController : ODataController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var username = HttpContext.User.Identity.Name;
+        var user = await GetCurrentUser();
+        if (user == null) return Unauthorized();
 
-        var user = await _userManager.FindByNameAsync(username);
-        if (user is null) return NotFound();
-
-        var profileDb = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.Id == profileId && p.UserId == user.Id);
-        if (profileDb is null)
-        {
-            profile.Id = profileId;
-            profile.UserId = user.Id;
-            _dbContext.Profiles.Add(profile);
-            await _dbContext.SaveChangesAsync();
-
-            return Created(profile);
-        }
-
-        profile.UserId = profileDb.UserId;
-        _dbContext.Entry(profileDb).CurrentValues.SetValues(profile);
-        await _dbContext.SaveChangesAsync();
-
+        await _profilesOrchestrator.UpdateUserProfile(user, profile, profileId);
         return Ok(profile);
     }
 
@@ -104,26 +74,11 @@ public class ProfilesController : ODataController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var username = HttpContext.User.Identity.Name;
+        var user = await GetCurrentUser();
+        if (user == null) return Unauthorized();
 
-        var user = await _userManager.FindByNameAsync(username);
-        if (user is null) return NotFound();
-
-        var profile = patch.GetInstance();
-        var profileDb = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.Id == profileId && p.UserId == user.Id);
-        if (profileDb is null)
-        {
-            profile.Id = profileId;
-            profile.UserId = user.Id;
-            _dbContext.Profiles.Add(profile);
-            await _dbContext.SaveChangesAsync();
-            return Created(profile);
-        }
-
-        patch.Patch(profileDb);
-        await _dbContext.SaveChangesAsync();
-
-        return Ok(profileDb);
+        var updatedProfile = _profilesOrchestrator.PartiallyUpdateUserProfile(user, patch, profileId);
+        return Ok(updatedProfile);
     }
 
     [HttpDelete("profiles({profileId})")]
@@ -131,14 +86,17 @@ public class ProfilesController : ODataController
     {
         var username = HttpContext.User.Identity.Name;
 
-        var user = await _userManager.FindByNameAsync(username);
-        if (user is null) return NotFound();
+        var user = await GetCurrentUser();
+        if (user == null) return Unauthorized();
 
-        var profileDb = await _dbContext.Profiles.FirstOrDefaultAsync(p => p.Id == profileId && p.UserId == user.Id);
-        if (profileDb == null) return NotFound();
-
-        _dbContext.Profiles.Remove(profileDb);
-        await _dbContext.SaveChangesAsync();
+        _profilesOrchestrator.DeleteUserProfile(user, profileId);
         return NoContent();
+    }
+
+    private async Task<ApplicationUser?> GetCurrentUser()
+    {
+        var username = HttpContext.User.Identity.Name;
+        var user = await _userManager.FindByNameAsync(username);
+        return user;
     }
 }

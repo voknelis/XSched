@@ -12,6 +12,8 @@ using XSched.API.Helpers;
 using XSched.API.Middlewares;
 using XSched.API.Orchestrators.Implementations;
 using XSched.API.Orchestrators.Interfaces;
+using XSched.API.Repositories.Implementation;
+using XSched.API.Repositories.Interfaces;
 using XSched.API.Services.Implementations;
 using XSched.API.Services.Interfaces;
 
@@ -56,6 +58,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddTransient<IProfileRepository, ProfileRepository>();
 builder.Services.AddTransient<IAuthenticateOrchestrator, AuthenticateOrchestrator>();
 builder.Services.AddTransient<IJwtTokenService, JwtTokenService>();
 builder.Services.AddDbContext<XSchedDbContext>(options =>
