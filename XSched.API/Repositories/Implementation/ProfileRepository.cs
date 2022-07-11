@@ -29,7 +29,7 @@ public class ProfileRepository : IProfileRepository
         _dbContext.Profiles.Add(profile);
     }
 
-    public void UpdateProfile(UserProfile profileDb, UserProfile profile)
+    public virtual void UpdateProfile(UserProfile profileDb, UserProfile profile)
     {
         _dbContext.Entry(profileDb).CurrentValues.SetValues(profile);
     }
