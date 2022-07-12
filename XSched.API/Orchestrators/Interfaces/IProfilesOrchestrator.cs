@@ -10,5 +10,5 @@ public interface IProfilesOrchestrator
     public Task CreateUserProfile(ApplicationUser user, UserProfile profile);
     public Task UpdateUserProfile(ApplicationUser user, UserProfile profile, Guid profileId);
     public Task<UserProfile> PartiallyUpdateUserProfile(ApplicationUser user, Delta<UserProfile> patch, Guid profileId);
-    public void DeleteUserProfile(ApplicationUser user, Guid profileId);
+    public Task DeleteUserProfile(ApplicationUser user, Guid profileId);
 }

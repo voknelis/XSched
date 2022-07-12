@@ -23,7 +23,7 @@ public class FrontendException : Exception
 
     private static string BuildMessage(IEnumerable<string> errors)
     {
-        if (errors.Any()) return "An unknown error happened.";
+        if (!errors.Any()) return "An unknown error happened.";
         if (errors.Count() == 1) return errors.FirstOrDefault();
 
         var counter = 1;

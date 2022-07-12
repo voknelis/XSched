@@ -48,6 +48,7 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
         }
 
         profile.Id = profileDb.Id;
+        profile.UserId = profileDb.UserId;
         _profileRepository.UpdateProfile(profileDb, profile);
         await _profileRepository.SaveChangesAsync();
     }
@@ -72,7 +73,7 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
         return profileDb;
     }
 
-    public async void DeleteUserProfile(ApplicationUser user, Guid profileId)
+    public async Task DeleteUserProfile(ApplicationUser user, Guid profileId)
     {
         var profile = await _profileRepository.GetUserProfileById(user.Id, profileId);
         if (profile == null)
