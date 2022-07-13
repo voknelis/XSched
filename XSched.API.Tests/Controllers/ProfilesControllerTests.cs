@@ -19,7 +19,7 @@ public class ProfilesControllerTest
     private Random _random;
     private Mock<XSchedDbContext> _dbContextMock;
     private Mock<ProfileRepository> _profileRepositoryMock;
-    private ProfilesOrchestrator _profileOrchestrator;
+    private Mock<ProfilesOrchestrator> _profileOrchestrator;
     private Mock<ProfilesController> _profilesController;
 
     [SetUp]
@@ -175,6 +175,12 @@ public class ProfilesControllerTest
         Assert.That(userProfileUpdated!.Title, Is.EqualTo(userProfileToUpdateCopy.Title));
         Assert.That(userProfileUpdated!.Title, Is.Not.EqualTo(userProfileCopy.Title));
         Assert.That(userProfileUpdated!.UserId, Is.EqualTo(user.Id));
+
+        _profileOrchestrator.Verify(x => x.CreateUserProfile(It.IsAny<ApplicationUser>(), It.IsAny<UserProfile>()),
+            Times.Once);
+        _profileOrchestrator.Verify(
+            x => x.UpdateUserProfile(It.IsAny<ApplicationUser>(), It.IsAny<UserProfile>(), It.IsAny<UserProfile>()),
+            Times.Once);
     }
 
     [Test]
@@ -191,6 +197,12 @@ public class ProfilesControllerTest
         Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount));
         Assert.NotNull(result);
         Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
+
+        _profileOrchestrator.Verify(x => x.CreateUserProfile(It.IsAny<ApplicationUser>(), It.IsAny<UserProfile>()),
+            Times.Never);
+        _profileOrchestrator.Verify(
+            x => x.UpdateUserProfile(It.IsAny<ApplicationUser>(), It.IsAny<UserProfile>(), It.IsAny<UserProfile>()),
+            Times.Never);
     }
 
     [Test]
@@ -230,6 +242,13 @@ public class ProfilesControllerTest
         Assert.That(userProfileUpdated!.Title, Is.EqualTo(userProfileToUpdate.Title));
         Assert.That(userProfileUpdated!.Title, Is.Not.EqualTo(userProfileCopy.Title));
         Assert.That(userProfileUpdated!.UserId, Is.EqualTo(user.Id));
+
+        _profileOrchestrator.Verify(x => x.CreateUserProfile(It.IsAny<ApplicationUser>(), It.IsAny<UserProfile>()),
+            Times.Once);
+        _profileOrchestrator.Verify(
+            x => x.PartiallyUpdateUserProfile(It.IsAny<ApplicationUser>(), It.IsAny<Delta<UserProfile>>(),
+                It.IsAny<UserProfile>()),
+            Times.Once);
     }
 
     [Test]
@@ -246,6 +265,13 @@ public class ProfilesControllerTest
         Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount));
         Assert.NotNull(result);
         Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
+
+        _profileOrchestrator.Verify(x => x.CreateUserProfile(It.IsAny<ApplicationUser>(), It.IsAny<UserProfile>()),
+            Times.Never);
+        _profileOrchestrator.Verify(
+            x => x.PartiallyUpdateUserProfile(It.IsAny<ApplicationUser>(), It.IsAny<Delta<UserProfile>>(),
+                It.IsAny<UserProfile>()),
+            Times.Never);
     }
 
     [Test]
@@ -365,9 +391,9 @@ public class ProfilesControllerTest
         return repository;
     }
 
-    private ProfilesOrchestrator GetProfileOrchestrator()
+    private Mock<ProfilesOrchestrator> GetProfileOrchestrator()
     {
-        return new ProfilesOrchestrator(_profileRepositoryMock.Object);
+        return new Mock<ProfilesOrchestrator>(_profileRepositoryMock.Object) { CallBase = true };
     }
 
     private Mock<ProfilesController> GetProfilesControllerMock(bool returnUser = true)
@@ -378,7 +404,7 @@ public class ProfilesControllerTest
                 null);
 
         var user = returnUser ? _dbContextMock.Object.Users.FirstOrDefault() as ApplicationUser : null;
-        var controllerMock = new Mock<ProfilesController>(userManagerMock.Object, _profileOrchestrator)
+        var controllerMock = new Mock<ProfilesController>(userManagerMock.Object, _profileOrchestrator.Object)
             { CallBase = true };
         controllerMock.Setup(x => x.GetCurrentUser()).ReturnsAsync(user);
         return controllerMock;

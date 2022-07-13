@@ -29,14 +29,14 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
         return profile;
     }
 
-    public async Task CreateUserProfile(ApplicationUser user, UserProfile profile)
+    public virtual async Task CreateUserProfile(ApplicationUser user, UserProfile profile)
     {
         profile.UserId = user.Id;
         _profileRepository.CreateProfile(profile);
         await _profileRepository.SaveChangesAsync();
     }
 
-    public async Task UpdateUserProfile(ApplicationUser user, UserProfile profile, UserProfile profileDb)
+    public virtual async Task UpdateUserProfile(ApplicationUser user, UserProfile profile, UserProfile profileDb)
     {
         profile.Id = profileDb.Id;
         profile.UserId = profileDb.UserId;
@@ -44,7 +44,7 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
         await _profileRepository.SaveChangesAsync();
     }
 
-    public async Task<UserProfile> PartiallyUpdateUserProfile(ApplicationUser user, Delta<UserProfile> patch,
+    public virtual async Task<UserProfile> PartiallyUpdateUserProfile(ApplicationUser user, Delta<UserProfile> patch,
         UserProfile profileDb)
     {
         patch.Patch(profileDb);
