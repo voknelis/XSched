@@ -143,20 +143,27 @@ public class ProfilesOrchestratorTests
             Title = _random.Next(100000, 999999).ToString()
         };
         var userProfileCopy = Helpers.Helpers.CloneJson(userProfile);
-        await _profileOrchestrator.UpdateUserProfile(user!, userProfile, userProfileId);
+        await _profileOrchestrator.CreateUserProfile(user!, userProfile);
 
         Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
         Assert.That(userProfile.Id, Is.EqualTo(userProfileCopy.Id));
         Assert.That(userProfile.Title, Is.EqualTo(userProfileCopy.Title));
         Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
 
-        userProfile.Title = _random.Next(100000, 999999).ToString();
-        await _profileOrchestrator.UpdateUserProfile(user!, userProfile, userProfileId);
+        var userProfileToUpdate = new UserProfile()
+        {
+            Id = userProfile.Id,
+            Title = _random.Next(100000, 999999).ToString(),
+            UserId = userProfile.UserId
+        };
+        var userProfileToUpdateCopy = Helpers.Helpers.CloneJson(userProfileToUpdate);
+        await _profileOrchestrator.UpdateUserProfile(user!, userProfileToUpdate, userProfile);
 
         Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
-        Assert.That(userProfile.Id, Is.EqualTo(userProfileCopy.Id));
-        Assert.That(userProfile.Title, Is.Not.EqualTo(userProfileCopy.Title));
-        Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
+        Assert.That(userProfileToUpdate.Id, Is.EqualTo(userProfileToUpdateCopy.Id));
+        Assert.That(userProfileToUpdate.Title, Is.EqualTo(userProfileToUpdateCopy.Title));
+        Assert.That(userProfileToUpdate.Title, Is.Not.EqualTo(userProfileCopy.Title));
+        Assert.That(userProfileToUpdate.UserId, Is.EqualTo(user!.Id));
     }
 
     [Test]
@@ -170,12 +177,13 @@ public class ProfilesOrchestratorTests
         var user = usersDbSet.FirstOrDefault() as ApplicationUser;
 
         var userProfileId = Guid.NewGuid();
+        var userProfile = new UserProfile()
+        {
+            Id = userProfileId,
+            Title = _random.Next(100000, 999999).ToString()
+        };
 
-        var patch = new Delta<UserProfile>();
-        patch.TrySetPropertyValue("Id", userProfileId);
-        patch.TrySetPropertyValue("Title", _random.Next(100000, 999999).ToString());
-
-        var userProfile = await _profileOrchestrator.PartiallyUpdateUserProfile(user!, patch, userProfileId);
+        await _profileOrchestrator.CreateUserProfile(user!, userProfile);
         var userProfileCopy = Helpers.Helpers.CloneJson(userProfile);
 
         Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
@@ -183,13 +191,16 @@ public class ProfilesOrchestratorTests
         Assert.That(userProfile.Title, Is.EqualTo(userProfileCopy.Title));
         Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
 
+        var patch = new Delta<UserProfile>();
         patch.TrySetPropertyValue("Title", _random.Next(100000, 999999).ToString());
-        userProfile = await _profileOrchestrator.PartiallyUpdateUserProfile(user!, patch, userProfileId);
+        var userProfileToUpdate = Helpers.Helpers.CloneJson(patch.GetInstance());
+        var userProfileUpdated = await _profileOrchestrator.PartiallyUpdateUserProfile(user!, patch, userProfile);
 
         Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
-        Assert.That(userProfile.Id, Is.EqualTo(userProfileCopy.Id));
-        Assert.That(userProfile.Title, Is.Not.EqualTo(userProfileCopy.Title));
-        Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
+        Assert.That(userProfileUpdated.Id, Is.EqualTo(userProfileId));
+        Assert.That(userProfileUpdated.Title, Is.EqualTo(userProfileToUpdate.Title));
+        Assert.That(userProfileUpdated.Title, Is.Not.EqualTo(userProfileCopy.Title));
+        Assert.That(userProfileUpdated.UserId, Is.EqualTo(user!.Id));
     }
 
     [Test]

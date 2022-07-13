@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.OData.Deltas;
 using Microsoft.AspNetCore.OData.Query;
 using Microsoft.AspNetCore.OData.Routing.Controllers;
 using XSched.API.Entities;
+using XSched.API.Models;
 using XSched.API.Orchestrators.Interfaces;
 
 namespace XSched.API.Controllers;
@@ -18,8 +19,8 @@ public class ProfilesController : ODataController
 
     public ProfilesController(UserManager<ApplicationUser> userManager, IProfilesOrchestrator profilesOrchestrator)
     {
-        _userManager = userManager;
-        _profilesOrchestrator = profilesOrchestrator;
+        _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
+        _profilesOrchestrator = profilesOrchestrator ?? throw new ArgumentNullException(nameof(profilesOrchestrator));
     }
 
     [HttpGet("profiles")]
@@ -57,15 +58,24 @@ public class ProfilesController : ODataController
 
     [HttpPut("profiles({profileId})")]
     [EnableQuery]
-    public async Task<IActionResult> CreateUserProfile(Guid profileId, [FromBody] UserProfile profile)
+    public async Task<IActionResult> UpdateUserProfile(Guid profileId, [FromBody] UserProfile profile)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var user = await GetCurrentUser();
         if (user == null) return Unauthorized();
 
-        await _profilesOrchestrator.UpdateUserProfile(user, profile, profileId);
-        return Ok(profile);
+        try
+        {
+            var profileDb = await _profilesOrchestrator.GetUserProfile(user, profileId);
+            await _profilesOrchestrator.UpdateUserProfile(user, profile, profileDb);
+            return Ok(profile);
+        }
+        catch (FrontendException e)
+        {
+            await _profilesOrchestrator.CreateUserProfile(user, profile);
+            return Created(profile);
+        }
     }
 
     [HttpPatch("profiles({profileId})")]
@@ -77,15 +87,23 @@ public class ProfilesController : ODataController
         var user = await GetCurrentUser();
         if (user == null) return Unauthorized();
 
-        var updatedProfile = _profilesOrchestrator.PartiallyUpdateUserProfile(user, patch, profileId);
-        return Ok(updatedProfile);
+        try
+        {
+            var profileDb = await _profilesOrchestrator.GetUserProfile(user, profileId);
+            var profile = await _profilesOrchestrator.PartiallyUpdateUserProfile(user, patch, profileDb);
+            return Ok(profile);
+        }
+        catch (FrontendException e)
+        {
+            var profile = patch.GetInstance();
+            await _profilesOrchestrator.CreateUserProfile(user, profile);
+            return Created(profile);
+        }
     }
 
     [HttpDelete("profiles({profileId})")]
     public async Task<IActionResult> DeleteUserProfile(Guid profileId)
     {
-        var username = HttpContext.User.Identity.Name;
-
         var user = await GetCurrentUser();
         if (user == null) return Unauthorized();
 
@@ -93,7 +111,7 @@ public class ProfilesController : ODataController
         return NoContent();
     }
 
-    private async Task<ApplicationUser?> GetCurrentUser()
+    public virtual async Task<ApplicationUser?> GetCurrentUser()
     {
         var username = HttpContext.User.Identity.Name;
         var user = await _userManager.FindByNameAsync(username);

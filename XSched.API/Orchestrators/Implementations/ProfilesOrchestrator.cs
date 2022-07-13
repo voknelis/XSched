@@ -36,17 +36,8 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
         await _profileRepository.SaveChangesAsync();
     }
 
-    public async Task UpdateUserProfile(ApplicationUser user, UserProfile profile, Guid profileId)
+    public async Task UpdateUserProfile(ApplicationUser user, UserProfile profile, UserProfile profileDb)
     {
-        var profileDb = await _profileRepository.GetUserProfileById(user.Id, profileId);
-        if (profileDb == null)
-        {
-            // upserting
-            profile.Id = profileId;
-            await CreateUserProfile(user, profile);
-            return;
-        }
-
         profile.Id = profileDb.Id;
         profile.UserId = profileDb.UserId;
         _profileRepository.UpdateProfile(profileDb, profile);
@@ -54,19 +45,8 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
     }
 
     public async Task<UserProfile> PartiallyUpdateUserProfile(ApplicationUser user, Delta<UserProfile> patch,
-        Guid profileId)
+        UserProfile profileDb)
     {
-        var profileDb = await _profileRepository.GetUserProfileById(user.Id, profileId);
-        if (profileDb == null)
-        {
-            // upserting
-            var profile = patch.GetInstance();
-
-            profile.Id = profileId;
-            await CreateUserProfile(user, profile);
-            return profile;
-        }
-
         patch.Patch(profileDb);
         await _profileRepository.SaveChangesAsync();
 
