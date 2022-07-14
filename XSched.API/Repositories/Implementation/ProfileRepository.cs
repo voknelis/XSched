@@ -19,7 +19,7 @@ public class ProfileRepository : IProfileRepository
         return _dbContext.Profiles.Where(p => p.UserId == userId);
     }
 
-    public async Task<UserProfile?> GetUserProfileById(string userId, Guid profileId)
+    public async Task<UserProfile?> GetUserProfileByIdAsync(string userId, Guid profileId)
     {
         return await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId && p.Id == profileId);
     }

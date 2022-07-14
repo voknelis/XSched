@@ -23,7 +23,7 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
 
     public async Task<UserProfile> GetUserProfile(ApplicationUser user, Guid profileId)
     {
-        var profile = await _profileRepository.GetUserProfileById(user.Id, profileId);
+        var profile = await _profileRepository.GetUserProfileByIdAsync(user.Id, profileId);
         if (profile == null)
             throw new FrontendException($"Requested profile was not found", StatusCodes.Status404NotFound);
         return profile;
@@ -55,7 +55,7 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
 
     public async Task DeleteUserProfile(ApplicationUser user, Guid profileId)
     {
-        var profile = await _profileRepository.GetUserProfileById(user.Id, profileId);
+        var profile = await _profileRepository.GetUserProfileByIdAsync(user.Id, profileId);
         if (profile == null)
             throw new FrontendException($"Requested profile was not found", StatusCodes.Status404NotFound);
         _profileRepository.DeleteProfile(profile);

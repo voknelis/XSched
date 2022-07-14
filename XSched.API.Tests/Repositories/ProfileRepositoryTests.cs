@@ -83,17 +83,17 @@ public class ProfileRepositoryTests
         _dbContextMock.Setup(x => x.Profiles).ReturnsDbSet(userProfiles);
 
         var repository = _profileRepositoryMock.Object;
-        var profile = await repository.GetUserProfileById(user!.Id, profileGuid);
+        var profile = await repository.GetUserProfileByIdAsync(user!.Id, profileGuid);
         Assert.IsNotNull(profile);
         Assert.That(profile!.Id, Is.EqualTo(profileGuid));
 
-        profile = await repository.GetUserProfileById(Guid.NewGuid().ToString(), profileGuid);
+        profile = await repository.GetUserProfileByIdAsync(Guid.NewGuid().ToString(), profileGuid);
         Assert.IsNull(profile);
 
-        profile = await repository.GetUserProfileById(user!.Id, Guid.NewGuid());
+        profile = await repository.GetUserProfileByIdAsync(user!.Id, Guid.NewGuid());
         Assert.IsNull(profile);
 
-        profile = await repository.GetUserProfileById(Guid.NewGuid().ToString(), Guid.NewGuid());
+        profile = await repository.GetUserProfileByIdAsync(Guid.NewGuid().ToString(), Guid.NewGuid());
         Assert.IsNull(profile);
     }
 
