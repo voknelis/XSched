@@ -83,7 +83,8 @@ public class ProfilesControllerTest
     {
         _profilesController = GetProfilesControllerMock();
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfile = new UserProfile()
         {
             Id = Guid.NewGuid(),
@@ -94,7 +95,7 @@ public class ProfilesControllerTest
 
         var result = await _profilesController.Object.CreateUserProfile(userProfile) as CreatedODataResult<UserProfile>;
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.NotNull(result);
         Assert.That(result!.Entity.Id, Is.EqualTo(userProfileCopy.Id));
         Assert.That(result!.Entity.Title, Is.EqualTo(userProfileCopy.Title));
@@ -106,7 +107,8 @@ public class ProfilesControllerTest
     {
         _profilesController = GetProfilesControllerMock();
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfile = new UserProfile()
         {
             Id = Guid.NewGuid()
@@ -115,7 +117,7 @@ public class ProfilesControllerTest
 
         var result = await _profilesController.Object.CreateUserProfile(userProfile) as BadRequestObjectResult;
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
         Assert.NotNull(result);
         Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
     }
@@ -125,12 +127,13 @@ public class ProfilesControllerTest
     {
         _profilesController = GetProfilesControllerMock(false);
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfile = new UserProfile();
 
         var result = await _profilesController.Object.CreateUserProfile(userProfile) as UnauthorizedResult;
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
         Assert.NotNull(result);
         Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
     }
@@ -140,7 +143,8 @@ public class ProfilesControllerTest
     {
         _profilesController = GetProfilesControllerMock();
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfile = new UserProfile()
         {
             Id = Guid.NewGuid(),
@@ -153,7 +157,7 @@ public class ProfilesControllerTest
             await _profilesController.Object.UpdateUserProfile(userProfile.Id, userProfile) as
                 CreatedODataResult<UserProfile>;
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.NotNull(createResult);
         Assert.That(createResult!.Entity.Id, Is.EqualTo(userProfileCopy.Id));
         Assert.That(createResult!.Entity.Title, Is.EqualTo(userProfileCopy.Title));
@@ -169,7 +173,7 @@ public class ProfilesControllerTest
         var updateResult =
             await _profilesController.Object.UpdateUserProfile(userProfileToUpdate.Id, userProfileToUpdate) as
                 OkObjectResult;
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
 
         var userProfileUpdated = updateResult!.Value as UserProfile;
         Assert.That(userProfileUpdated!.Id, Is.EqualTo(userProfileToUpdateCopy.Id));
@@ -189,13 +193,14 @@ public class ProfilesControllerTest
     {
         _profilesController = GetProfilesControllerMock(false);
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfile = new UserProfile();
 
         var result =
             await _profilesController.Object.UpdateUserProfile(userProfile.Id, userProfile) as UnauthorizedResult;
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
         Assert.NotNull(result);
         Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
 
@@ -211,7 +216,8 @@ public class ProfilesControllerTest
     {
         _profilesController = GetProfilesControllerMock();
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
 
         var patch = new Delta<UserProfile>();
         patch.TrySetPropertyValue("Id", Guid.NewGuid());
@@ -224,7 +230,7 @@ public class ProfilesControllerTest
             await _profilesController.Object.PartiallyUpdateUserProfile(userProfile.Id, patch) as
                 CreatedODataResult<UserProfile>;
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.NotNull(createResult);
         Assert.That(createResult!.Entity.Id, Is.EqualTo(userProfileCopy.Id));
         Assert.That(createResult!.Entity.Title, Is.EqualTo(userProfileCopy.Title));
@@ -236,7 +242,7 @@ public class ProfilesControllerTest
         var updateResult =
             await _profilesController.Object.PartiallyUpdateUserProfile(userProfile.Id, patchToUpdate) as
                 OkObjectResult;
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
 
         var userProfileUpdated = updateResult!.Value as UserProfile;
         Assert.That(userProfileUpdated!.Id, Is.EqualTo(userProfile.Id));
@@ -257,13 +263,14 @@ public class ProfilesControllerTest
     {
         _profilesController = GetProfilesControllerMock(false);
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfile = new Delta<UserProfile>();
 
         var result =
             await _profilesController.Object.PartiallyUpdateUserProfile(Guid.Empty, userProfile) as UnauthorizedResult;
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
         Assert.NotNull(result);
         Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
 
@@ -296,12 +303,13 @@ public class ProfilesControllerTest
     {
         _profilesController = GetProfilesControllerMock(false);
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
 
         var result =
             await _profilesController.Object.DeleteUserProfile(Guid.Empty) as UnauthorizedResult;
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
         Assert.NotNull(result);
         Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
     }

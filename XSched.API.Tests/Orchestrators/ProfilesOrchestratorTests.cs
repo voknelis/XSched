@@ -36,12 +36,11 @@ public class ProfilesOrchestratorTests
         var secondUser = usersDbSet.ToList()[1] as ApplicationUser;
 
         var profilesDbSet = _dbContextMock.Object.Profiles;
-        Assert.That(profilesDbSet.Count(), Is.EqualTo(3));
-
         var profilesFirstUser = await _profileOrchestrator.GetUserProfiles(firstUser!);
-        Assert.That(profilesFirstUser.Count(), Is.EqualTo(1));
-
         var profilesSecondUser = await _profileOrchestrator.GetUserProfiles(secondUser!);
+
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(3));
+        Assert.That(profilesFirstUser.Count(), Is.EqualTo(1));
         Assert.That(profilesSecondUser.Count(), Is.EqualTo(2));
     }
 
@@ -60,13 +59,11 @@ public class ProfilesOrchestratorTests
     [Test]
     public async Task GetUserProfileTest()
     {
-        var usersDbSet = _dbContextMock.Object.Users;
-        var firstUser = usersDbSet.FirstOrDefault() as ApplicationUser;
+        var user = _dbContextMock.Object.Users.FirstOrDefault() as ApplicationUser;
 
-        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var targetProfile = _dbContextMock.Object.Profiles.FirstOrDefault();
+        var foundProfile = await _profileOrchestrator.GetUserProfile(user!, targetProfile!.Id);
 
-        var targetProfile = profilesDbSet.FirstOrDefault();
-        var foundProfile = await _profileOrchestrator.GetUserProfile(firstUser!, targetProfile!.Id);
         Assert.That(foundProfile, Is.Not.Null);
         Assert.That(foundProfile.Id, Is.EqualTo(targetProfile.Id));
     }
@@ -74,8 +71,7 @@ public class ProfilesOrchestratorTests
     [Test]
     public void GetUserProfileErrorsTest()
     {
-        var usersDbSet = _dbContextMock.Object.Users;
-        var firstUser = usersDbSet.FirstOrDefault() as ApplicationUser;
+        var user = _dbContextMock.Object.Users.FirstOrDefault() as ApplicationUser;
         var unknownUser = new ApplicationUser();
 
         var profilesDbSet = _dbContextMock.Object.Profiles;
@@ -85,7 +81,7 @@ public class ProfilesOrchestratorTests
         var arguments = new List<(ApplicationUser, Guid)>()
         {
             (unknownUser, targetProfile!.Id),
-            (firstUser!, Guid.NewGuid()),
+            (user!, Guid.NewGuid()),
             (unknownUser, Guid.NewGuid())
         };
         var actualMessage = "Requested profile was not found";
@@ -106,10 +102,10 @@ public class ProfilesOrchestratorTests
     [Test]
     public async Task CreateUserProfileTest()
     {
-        var usersDbSet = _dbContextMock.Object.Users;
-        var user = usersDbSet.FirstOrDefault() as ApplicationUser;
+        var user = _dbContextMock.Object.Users.FirstOrDefault() as ApplicationUser;
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfile = new UserProfile()
         {
             Id = Guid.NewGuid(),
@@ -118,7 +114,7 @@ public class ProfilesOrchestratorTests
         var userProfileCopy = userProfile.Clone();
         await _profileOrchestrator.CreateUserProfile(user!, userProfile);
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.That(userProfile.Id, Is.EqualTo(userProfileCopy.Id));
         Assert.That(userProfile.Title, Is.EqualTo(userProfileCopy.Title));
         Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
@@ -131,7 +127,8 @@ public class ProfilesOrchestratorTests
         var usersDbSet = _dbContextMock.Object.Users;
         var user = usersDbSet.FirstOrDefault() as ApplicationUser;
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfileId = Guid.NewGuid();
         var userProfile = new UserProfile()
         {
@@ -141,7 +138,7 @@ public class ProfilesOrchestratorTests
         var userProfileCopy = userProfile.Clone();
         await _profileOrchestrator.CreateUserProfile(user!, userProfile);
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.That(userProfile.Id, Is.EqualTo(userProfileCopy.Id));
         Assert.That(userProfile.Title, Is.EqualTo(userProfileCopy.Title));
         Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
@@ -155,7 +152,7 @@ public class ProfilesOrchestratorTests
         var userProfileToUpdateCopy = userProfileToUpdate.Clone();
         await _profileOrchestrator.UpdateUserProfile(user!, userProfileToUpdate, userProfile);
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.That(userProfileToUpdate.Id, Is.EqualTo(userProfileToUpdateCopy.Id));
         Assert.That(userProfileToUpdate.Title, Is.EqualTo(userProfileToUpdateCopy.Title));
         Assert.That(userProfileToUpdate.Title, Is.Not.EqualTo(userProfileCopy.Title));
@@ -165,10 +162,10 @@ public class ProfilesOrchestratorTests
     [Test]
     public async Task CreateAndPartiallyUpdateUserProfileTest()
     {
-        var usersDbSet = _dbContextMock.Object.Users;
-        var user = usersDbSet.FirstOrDefault() as ApplicationUser;
+        var user = _dbContextMock.Object.Users.FirstOrDefault() as ApplicationUser;
 
-        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfileId = Guid.NewGuid();
         var userProfile = new UserProfile()
         {
@@ -179,7 +176,7 @@ public class ProfilesOrchestratorTests
         await _profileOrchestrator.CreateUserProfile(user!, userProfile);
         var userProfileCopy = userProfile.Clone();
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.That(userProfile.Id, Is.EqualTo(userProfileCopy.Id));
         Assert.That(userProfile.Title, Is.EqualTo(userProfileCopy.Title));
         Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
@@ -189,7 +186,7 @@ public class ProfilesOrchestratorTests
         var userProfileToUpdate = patch.GetInstance().Clone();
         var userProfileUpdated = await _profileOrchestrator.PartiallyUpdateUserProfile(user!, patch, userProfile);
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.That(userProfileUpdated.Id, Is.EqualTo(userProfileId));
         Assert.That(userProfileUpdated.Title, Is.EqualTo(userProfileToUpdate.Title));
         Assert.That(userProfileUpdated.Title, Is.Not.EqualTo(userProfileCopy.Title));
@@ -199,8 +196,7 @@ public class ProfilesOrchestratorTests
     [Test]
     public async Task DeleteUserProfileTest()
     {
-        var usersDbSet = _dbContextMock.Object.Users;
-        var user = usersDbSet.FirstOrDefault() as ApplicationUser;
+        var user = _dbContextMock.Object.Users.FirstOrDefault() as ApplicationUser;
 
         var profilesDbSet = _dbContextMock.Object.Profiles;
         var profilesInitialCount = profilesDbSet.Count();
@@ -217,8 +213,7 @@ public class ProfilesOrchestratorTests
     [Test]
     public void DeleteUserProfileErrorsTest()
     {
-        var usersDbSet = _dbContextMock.Object.Users;
-        var user = usersDbSet.FirstOrDefault() as ApplicationUser;
+        var user = _dbContextMock.Object.Users.FirstOrDefault() as ApplicationUser;
         var unknownUser = new ApplicationUser();
 
         var profilesDbSet = _dbContextMock.Object.Profiles;
