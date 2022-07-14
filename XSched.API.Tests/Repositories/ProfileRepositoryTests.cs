@@ -1,9 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using EntityFrameworkCoreMock;
+using Microsoft.EntityFrameworkCore;
 using Moq;
-using Moq.EntityFrameworkCore;
 using XSched.API.DbContexts;
 using XSched.API.Entities;
 using XSched.API.Repositories.Implementation;
+using XSched.API.Tests.Helpers;
 
 namespace XSched.API.Tests.Repositories;
 
@@ -52,6 +53,7 @@ public class ProfileRepositoryTests
         };
         var profilesDbSet = _dbContextMock.Object.Profiles;
         profilesDbSet.AddRange(userProfiles);
+        _dbContextMock.Object.SaveChanges();
 
         Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(3));
 
@@ -80,7 +82,8 @@ public class ProfileRepositoryTests
                 UserId = user!.Id
             }
         };
-        _dbContextMock.Setup(x => x.Profiles).ReturnsDbSet(userProfiles);
+        _dbContextMock.Object.Profiles.AddRange(userProfiles);
+        _dbContextMock.Object.SaveChanges();
 
         var repository = _profileRepositoryMock.Object;
         var profile = await repository.GetUserProfileByIdAsync(user!.Id, profileGuid);
@@ -113,6 +116,7 @@ public class ProfileRepositoryTests
 
         var repository = _profileRepositoryMock.Object;
         repository.CreateProfile(userProfile);
+        _dbContextMock.Object.SaveChanges();
         Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
     }
 
@@ -132,13 +136,15 @@ public class ProfileRepositoryTests
 
         var repository = _profileRepositoryMock.Object;
         repository.CreateProfile(userProfile);
+        _dbContextMock.Object.SaveChanges();
         Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
 
-        var userProfileCopy = Helpers.Helpers.CloneJson(userProfile);
-        var userProfileUpdated = Helpers.Helpers.CloneJson(userProfile);
+        var userProfileCopy = userProfile.Clone();
+        var userProfileUpdated = userProfile.Clone();
 
         userProfileUpdated.Title = _random.Next(100000, 999999).ToString();
         repository.UpdateProfile(userProfile, userProfileUpdated);
+        _dbContextMock.Object.SaveChanges();
 
         Assert.That(userProfileUpdated.Id, Is.EqualTo(userProfile.Id));
         Assert.That(userProfileUpdated.Title, Is.EqualTo(userProfile.Title));
@@ -164,18 +170,22 @@ public class ProfileRepositoryTests
             };
         var profilesDbSet = _dbContextMock.Object.Profiles;
         profilesDbSet.Add(userProfile);
+        _dbContextMock.Object.SaveChanges();
 
         var repository = _profileRepositoryMock.Object;
 
         Assert.That(profilesDbSet.Count(), Is.EqualTo(1));
         repository.DeleteProfile(userProfile);
+        _dbContextMock.Object.SaveChanges();
         Assert.That(profilesDbSet.Count(), Is.EqualTo(0));
     }
 
     private Mock<XSchedDbContext> GetDbContextMock()
     {
-        var options = new DbContextOptions<XSchedDbContext>();
-        var dbContextMock = new Mock<XSchedDbContext>(options) { CallBase = false };
+        var optionsBuilder = new DbContextOptionsBuilder<XSchedDbContext>();
+        optionsBuilder.UseInMemoryDatabase("MyDatabase");
+
+        var dbContextMock = new DbContextMock<XSchedDbContext>(optionsBuilder.Options) { CallBase = true };
 
         SetupUsersDbSetMock(dbContextMock);
         SetupUserProfilesDbSetMock(dbContextMock);
@@ -183,19 +193,13 @@ public class ProfileRepositoryTests
         return dbContextMock;
     }
 
-    private void SetupUserProfilesDbSetMock(Mock<XSchedDbContext> dbContextMock)
+    private void SetupUserProfilesDbSetMock(DbContextMock<XSchedDbContext> dbContextMock)
     {
         var userProfiles = new List<UserProfile>();
-        dbContextMock.Setup(x => x.Profiles).ReturnsDbSet(userProfiles);
-        dbContextMock.Setup(x => x.Profiles.Add(It.IsAny<UserProfile>()))
-            .Callback<UserProfile>(x => userProfiles.Add(x));
-        dbContextMock.Setup(x => x.Profiles.AddRange(It.IsAny<IEnumerable<UserProfile>>()))
-            .Callback<IEnumerable<UserProfile>>(x => userProfiles.AddRange(x));
-        dbContextMock.Setup(x => x.Profiles.Remove(It.IsAny<UserProfile>()))
-            .Callback<UserProfile>(x => userProfiles.Remove(x));
+        dbContextMock.CreateDbSetMock(x => x.Profiles, userProfiles);
     }
 
-    private void SetupUsersDbSetMock(Mock<XSchedDbContext> dbContextMock)
+    private void SetupUsersDbSetMock(DbContextMock<XSchedDbContext> dbContextMock)
     {
         var users = new List<ApplicationUser>()
         {
@@ -210,19 +214,12 @@ public class ProfileRepositoryTests
                 UserName = _random.Next(100000, 999999).ToString()
             }
         };
-        dbContextMock.Setup(x => x.Users).ReturnsDbSet(users);
+        dbContextMock.CreateDbSetMock(x => x.Users, users);
     }
 
     private Mock<ProfileRepository> GetProfileRepositoryMock()
     {
-        var repository = new Mock<ProfileRepository>(_dbContextMock.Object);
-        repository.Setup(x => x.UpdateProfile(It.IsAny<UserProfile>(), It.IsAny<UserProfile>()))
-            .Callback<UserProfile, UserProfile>((profileDb, profile) =>
-            {
-                profileDb.Id = profile.Id;
-                profileDb.Title = profile.Title;
-                profileDb.UserId = profile.UserId;
-            });
+        var repository = new Mock<ProfileRepository>(_dbContextMock.Object) { CallBase = true };
         return repository;
     }
 }

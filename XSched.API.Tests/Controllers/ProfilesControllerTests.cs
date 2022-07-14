@@ -1,16 +1,17 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using EntityFrameworkCoreMock;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Deltas;
 using Microsoft.AspNetCore.OData.Results;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using Moq.EntityFrameworkCore;
 using XSched.API.Controllers;
 using XSched.API.DbContexts;
 using XSched.API.Entities;
 using XSched.API.Orchestrators.Implementations;
 using XSched.API.Repositories.Implementation;
+using XSched.API.Tests.Helpers;
 
 namespace XSched.API.Tests.Controllers;
 
@@ -88,7 +89,7 @@ public class ProfilesControllerTest
             Id = Guid.NewGuid(),
             Title = _random.Next(100000, 999999).ToString()
         };
-        var userProfileCopy = Helpers.Helpers.CloneJson(userProfile);
+        var userProfileCopy = userProfile.Clone();
         var user = _dbContextMock.Object.Users.FirstOrDefault()!;
 
         var result = await _profilesController.Object.CreateUserProfile(userProfile) as CreatedODataResult<UserProfile>;
@@ -145,7 +146,7 @@ public class ProfilesControllerTest
             Id = Guid.NewGuid(),
             Title = _random.Next(100000, 999999).ToString()
         };
-        var userProfileCopy = Helpers.Helpers.CloneJson(userProfile);
+        var userProfileCopy = userProfile.Clone();
         var user = _dbContextMock.Object.Users.FirstOrDefault()!;
 
         var createResult =
@@ -164,7 +165,7 @@ public class ProfilesControllerTest
             Title = _random.Next(100000, 999999).ToString(),
             UserId = userProfile.UserId
         };
-        var userProfileToUpdateCopy = Helpers.Helpers.CloneJson(userProfileToUpdate);
+        var userProfileToUpdateCopy = userProfileToUpdate.Clone();
         var updateResult =
             await _profilesController.Object.UpdateUserProfile(userProfileToUpdate.Id, userProfileToUpdate) as
                 OkObjectResult;
@@ -216,7 +217,7 @@ public class ProfilesControllerTest
         patch.TrySetPropertyValue("Id", Guid.NewGuid());
         patch.TrySetPropertyValue("Title", _random.Next(100000, 999999).ToString());
         var userProfile = patch.GetInstance();
-        var userProfileCopy = Helpers.Helpers.CloneJson(userProfile);
+        var userProfileCopy = userProfile.Clone();
         var user = _dbContextMock.Object.Users.FirstOrDefault()!;
 
         var createResult =
@@ -231,7 +232,7 @@ public class ProfilesControllerTest
 
         var patchToUpdate = new Delta<UserProfile>();
         patchToUpdate.TrySetPropertyValue("Title", _random.Next(100000, 999999).ToString());
-        var userProfileToUpdate = Helpers.Helpers.CloneJson(patchToUpdate.GetInstance());
+        var userProfileToUpdate = patchToUpdate.GetInstance().Clone();
         var updateResult =
             await _profilesController.Object.PartiallyUpdateUserProfile(userProfile.Id, patchToUpdate) as
                 OkObjectResult;
@@ -307,8 +308,10 @@ public class ProfilesControllerTest
 
     private Mock<XSchedDbContext> GetDbContextMock()
     {
-        var options = new DbContextOptions<XSchedDbContext>();
-        var dbContextMock = new Mock<XSchedDbContext>(options) { CallBase = false };
+        var optionsBuilder = new DbContextOptionsBuilder<XSchedDbContext>();
+        optionsBuilder.UseInMemoryDatabase("MyDatabase");
+
+        var dbContextMock = new DbContextMock<XSchedDbContext>(optionsBuilder.Options) { CallBase = true };
 
         SetupUsersDbSetMock(dbContextMock);
         SetupUserProfilesDbSetMock(dbContextMock);
@@ -316,7 +319,7 @@ public class ProfilesControllerTest
         return dbContextMock;
     }
 
-    private void SetupUsersDbSetMock(Mock<XSchedDbContext> dbContextMock)
+    private void SetupUsersDbSetMock(DbContextMock<XSchedDbContext> dbContextMock)
     {
         var users = new List<ApplicationUser>()
         {
@@ -331,10 +334,10 @@ public class ProfilesControllerTest
                 UserName = _random.Next(100000, 999999).ToString()
             }
         };
-        dbContextMock.Setup(x => x.Users).ReturnsDbSet(users);
+        dbContextMock.CreateDbSetMock(x => x.Users, users);
     }
 
-    private void SetupUserProfilesDbSetMock(Mock<XSchedDbContext> dbContextMock)
+    private void SetupUserProfilesDbSetMock(DbContextMock<XSchedDbContext> dbContextMock)
     {
         var usersDbSet = dbContextMock.Object.Users;
         var firstUser = usersDbSet.FirstOrDefault() as ApplicationUser;
@@ -363,31 +366,12 @@ public class ProfilesControllerTest
                 UserId = secondUser!.Id
             }
         };
-
-        dbContextMock.Setup(x => x.Profiles).ReturnsDbSet(userProfiles);
-        dbContextMock.Setup(x => x.Profiles.Add(It.IsAny<UserProfile>()))
-            .Callback<UserProfile>(userProfiles.Add);
-        dbContextMock.Setup(x => x.Profiles.AddRange(It.IsAny<IEnumerable<UserProfile>>()))
-            .Callback<IEnumerable<UserProfile>>(userProfiles.AddRange);
-        dbContextMock.Setup(x => x.Profiles.Remove(It.IsAny<UserProfile>()))
-            .Callback<UserProfile>(x => userProfiles.Remove(x));
-        dbContextMock.Setup(x => x.Profiles.RemoveRange(It.IsAny<IEnumerable<UserProfile>>()))
-            .Callback<IEnumerable<UserProfile>>(profiles =>
-            {
-                foreach (var profile in profiles) userProfiles.Remove(profile);
-            });
+        dbContextMock.CreateDbSetMock(x => x.Profiles, userProfiles);
     }
 
     private Mock<ProfileRepository> GetProfileRepositoryMock()
     {
-        var repository = new Mock<ProfileRepository>(_dbContextMock.Object);
-        repository.Setup(x => x.UpdateProfile(It.IsAny<UserProfile>(), It.IsAny<UserProfile>()))
-            .Callback<UserProfile, UserProfile>((profileDb, profile) =>
-            {
-                profileDb.Id = profile.Id;
-                profileDb.Title = profile.Title;
-                profileDb.UserId = profile.UserId;
-            });
+        var repository = new Mock<ProfileRepository>(_dbContextMock.Object) { CallBase = true };
         return repository;
     }
 

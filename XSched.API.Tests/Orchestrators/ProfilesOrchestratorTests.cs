@@ -1,13 +1,14 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using EntityFrameworkCoreMock;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.OData.Deltas;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using Moq.EntityFrameworkCore;
 using XSched.API.DbContexts;
 using XSched.API.Entities;
 using XSched.API.Models;
 using XSched.API.Orchestrators.Implementations;
 using XSched.API.Repositories.Implementation;
+using XSched.API.Tests.Helpers;
 
 namespace XSched.API.Tests.Orchestrators;
 
@@ -63,7 +64,6 @@ public class ProfilesOrchestratorTests
         var firstUser = usersDbSet.FirstOrDefault() as ApplicationUser;
 
         var profilesDbSet = _dbContextMock.Object.Profiles;
-        Assert.That(profilesDbSet.Count(), Is.EqualTo(3));
 
         var targetProfile = profilesDbSet.FirstOrDefault();
         var foundProfile = await _profileOrchestrator.GetUserProfile(firstUser!, targetProfile!.Id);
@@ -79,7 +79,7 @@ public class ProfilesOrchestratorTests
         var unknownUser = new ApplicationUser();
 
         var profilesDbSet = _dbContextMock.Object.Profiles;
-        Assert.That(profilesDbSet.Count(), Is.EqualTo(3));
+        var profilesInitialCount = profilesDbSet.Count();
 
         var targetProfile = profilesDbSet.FirstOrDefault();
         var arguments = new List<(ApplicationUser, Guid)>()
@@ -99,27 +99,26 @@ public class ProfilesOrchestratorTests
             Assert.That(throws.Message, Is.EqualTo(actualMessage));
             Assert.That(throws.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
         }
+
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
     }
 
     [Test]
     public async Task CreateUserProfileTest()
     {
-        foreach (var profile in new List<UserProfile>(_dbContextMock.Object.Profiles))
-            _dbContextMock.Object.Profiles.Remove(profile);
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(0));
-
         var usersDbSet = _dbContextMock.Object.Users;
         var user = usersDbSet.FirstOrDefault() as ApplicationUser;
 
+        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
         var userProfile = new UserProfile()
         {
             Id = Guid.NewGuid(),
             Title = _random.Next(100000, 999999).ToString()
         };
-        var userProfileCopy = Helpers.Helpers.CloneJson(userProfile);
+        var userProfileCopy = userProfile.Clone();
         await _profileOrchestrator.CreateUserProfile(user!, userProfile);
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
+        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.That(userProfile.Id, Is.EqualTo(userProfileCopy.Id));
         Assert.That(userProfile.Title, Is.EqualTo(userProfileCopy.Title));
         Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
@@ -129,23 +128,20 @@ public class ProfilesOrchestratorTests
     [Test]
     public async Task CreateAndUpdateUserProfileTest()
     {
-        foreach (var profile in new List<UserProfile>(_dbContextMock.Object.Profiles))
-            _dbContextMock.Object.Profiles.Remove(profile);
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(0));
-
         var usersDbSet = _dbContextMock.Object.Users;
         var user = usersDbSet.FirstOrDefault() as ApplicationUser;
 
+        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
         var userProfileId = Guid.NewGuid();
         var userProfile = new UserProfile()
         {
             Id = userProfileId,
             Title = _random.Next(100000, 999999).ToString()
         };
-        var userProfileCopy = Helpers.Helpers.CloneJson(userProfile);
+        var userProfileCopy = userProfile.Clone();
         await _profileOrchestrator.CreateUserProfile(user!, userProfile);
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
+        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.That(userProfile.Id, Is.EqualTo(userProfileCopy.Id));
         Assert.That(userProfile.Title, Is.EqualTo(userProfileCopy.Title));
         Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
@@ -156,10 +152,10 @@ public class ProfilesOrchestratorTests
             Title = _random.Next(100000, 999999).ToString(),
             UserId = userProfile.UserId
         };
-        var userProfileToUpdateCopy = Helpers.Helpers.CloneJson(userProfileToUpdate);
+        var userProfileToUpdateCopy = userProfileToUpdate.Clone();
         await _profileOrchestrator.UpdateUserProfile(user!, userProfileToUpdate, userProfile);
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
+        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.That(userProfileToUpdate.Id, Is.EqualTo(userProfileToUpdateCopy.Id));
         Assert.That(userProfileToUpdate.Title, Is.EqualTo(userProfileToUpdateCopy.Title));
         Assert.That(userProfileToUpdate.Title, Is.Not.EqualTo(userProfileCopy.Title));
@@ -169,13 +165,10 @@ public class ProfilesOrchestratorTests
     [Test]
     public async Task CreateAndPartiallyUpdateUserProfileTest()
     {
-        foreach (var profile in new List<UserProfile>(_dbContextMock.Object.Profiles))
-            _dbContextMock.Object.Profiles.Remove(profile);
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(0));
-
         var usersDbSet = _dbContextMock.Object.Users;
         var user = usersDbSet.FirstOrDefault() as ApplicationUser;
 
+        var profilesInitialCount = _dbContextMock.Object.Profiles.Count();
         var userProfileId = Guid.NewGuid();
         var userProfile = new UserProfile()
         {
@@ -184,19 +177,19 @@ public class ProfilesOrchestratorTests
         };
 
         await _profileOrchestrator.CreateUserProfile(user!, userProfile);
-        var userProfileCopy = Helpers.Helpers.CloneJson(userProfile);
+        var userProfileCopy = userProfile.Clone();
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
+        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.That(userProfile.Id, Is.EqualTo(userProfileCopy.Id));
         Assert.That(userProfile.Title, Is.EqualTo(userProfileCopy.Title));
         Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
 
         var patch = new Delta<UserProfile>();
         patch.TrySetPropertyValue("Title", _random.Next(100000, 999999).ToString());
-        var userProfileToUpdate = Helpers.Helpers.CloneJson(patch.GetInstance());
+        var userProfileToUpdate = patch.GetInstance().Clone();
         var userProfileUpdated = await _profileOrchestrator.PartiallyUpdateUserProfile(user!, patch, userProfile);
 
-        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(1));
+        Assert.That(_dbContextMock.Object.Profiles.Count(), Is.EqualTo(profilesInitialCount + 1));
         Assert.That(userProfileUpdated.Id, Is.EqualTo(userProfileId));
         Assert.That(userProfileUpdated.Title, Is.EqualTo(userProfileToUpdate.Title));
         Assert.That(userProfileUpdated.Title, Is.Not.EqualTo(userProfileCopy.Title));
@@ -210,12 +203,12 @@ public class ProfilesOrchestratorTests
         var user = usersDbSet.FirstOrDefault() as ApplicationUser;
 
         var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfile = profilesDbSet.FirstOrDefault();
 
-        Assert.That(profilesDbSet.Count(), Is.EqualTo(3));
         await _profileOrchestrator.DeleteUserProfile(user!, userProfile!.Id);
 
-        Assert.That(profilesDbSet.Count(), Is.EqualTo(2));
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount - 1));
         var throws = Assert.ThrowsAsync<FrontendException>(
             async () => { await _profileOrchestrator.GetUserProfile(user!, userProfile!.Id); });
         Assert.NotNull(throws);
@@ -229,9 +222,8 @@ public class ProfilesOrchestratorTests
         var unknownUser = new ApplicationUser();
 
         var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
         var userProfile = profilesDbSet.FirstOrDefault();
-
-        Assert.That(profilesDbSet.Count(), Is.EqualTo(3));
 
         var arguments = new List<(ApplicationUser, Guid)>()
         {
@@ -249,13 +241,17 @@ public class ProfilesOrchestratorTests
             Assert.That(throws.Message, Is.EqualTo(actualMessage));
             Assert.That(throws.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
         }
+
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
     }
 
 
     private Mock<XSchedDbContext> GetDbContextMock()
     {
-        var options = new DbContextOptions<XSchedDbContext>();
-        var dbContextMock = new Mock<XSchedDbContext>(options) { CallBase = false };
+        var optionsBuilder = new DbContextOptionsBuilder<XSchedDbContext>();
+        optionsBuilder.UseInMemoryDatabase("MyDatabase");
+
+        var dbContextMock = new DbContextMock<XSchedDbContext>(optionsBuilder.Options) { CallBase = true };
 
         SetupUsersDbSetMock(dbContextMock);
         SetupUserProfilesDbSetMock(dbContextMock);
@@ -263,7 +259,7 @@ public class ProfilesOrchestratorTests
         return dbContextMock;
     }
 
-    private void SetupUsersDbSetMock(Mock<XSchedDbContext> dbContextMock)
+    private void SetupUsersDbSetMock(DbContextMock<XSchedDbContext> dbContextMock)
     {
         var users = new List<ApplicationUser>()
         {
@@ -278,10 +274,10 @@ public class ProfilesOrchestratorTests
                 UserName = _random.Next(100000, 999999).ToString()
             }
         };
-        dbContextMock.Setup(x => x.Users).ReturnsDbSet(users);
+        dbContextMock.CreateDbSetMock(x => x.Users, users);
     }
 
-    private void SetupUserProfilesDbSetMock(Mock<XSchedDbContext> dbContextMock)
+    private void SetupUserProfilesDbSetMock(DbContextMock<XSchedDbContext> dbContextMock)
     {
         var usersDbSet = dbContextMock.Object.Users;
         var firstUser = usersDbSet.FirstOrDefault() as ApplicationUser;
@@ -310,26 +306,12 @@ public class ProfilesOrchestratorTests
                 UserId = secondUser!.Id
             }
         };
-
-        dbContextMock.Setup(x => x.Profiles).ReturnsDbSet(userProfiles);
-        dbContextMock.Setup(x => x.Profiles.Add(It.IsAny<UserProfile>()))
-            .Callback<UserProfile>(userProfiles.Add);
-        dbContextMock.Setup(x => x.Profiles.AddRange(It.IsAny<IEnumerable<UserProfile>>()))
-            .Callback<IEnumerable<UserProfile>>(userProfiles.AddRange);
-        dbContextMock.Setup(x => x.Profiles.Remove(It.IsAny<UserProfile>()))
-            .Callback<UserProfile>(x => userProfiles.Remove(x));
+        dbContextMock.CreateDbSetMock(x => x.Profiles, userProfiles);
     }
 
     private Mock<ProfileRepository> GetProfileRepositoryMock()
     {
-        var repository = new Mock<ProfileRepository>(_dbContextMock.Object);
-        repository.Setup(x => x.UpdateProfile(It.IsAny<UserProfile>(), It.IsAny<UserProfile>()))
-            .Callback<UserProfile, UserProfile>((profileDb, profile) =>
-            {
-                profileDb.Id = profile.Id;
-                profileDb.Title = profile.Title;
-                profileDb.UserId = profile.UserId;
-            });
+        var repository = new Mock<ProfileRepository>(_dbContextMock.Object) { CallBase = true };
         return repository;
     }
 
