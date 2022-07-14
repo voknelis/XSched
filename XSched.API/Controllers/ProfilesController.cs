@@ -111,6 +111,7 @@ public class ProfilesController : ODataController
         return NoContent();
     }
 
+    [ApiExplorerSettings(IgnoreApi = true)]
     public virtual async Task<ApplicationUser?> GetCurrentUser()
     {
         var username = HttpContext.User.Identity.Name;
