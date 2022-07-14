@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Runtime.Serialization;
 
 namespace XSched.API.Entities;
 
@@ -23,6 +24,7 @@ public class CalendarEvent
 
     public string? RecurrenceException { get; set; }
 
+    [IgnoreDataMember]
     public Guid ProfileId { get; set; }
 
     public UserProfile Profile { get; set; }

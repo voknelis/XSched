@@ -59,7 +59,9 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddTransient<IProfileRepository, ProfileRepository>();
+builder.Services.AddTransient<IProfilesOrchestrator, ProfilesOrchestrator>();
 builder.Services.AddTransient<IAuthenticateOrchestrator, AuthenticateOrchestrator>();
+builder.Services.AddTransient<ICalendarEventsOrchestrator, CalendarEventsOrchestrator>();
 builder.Services.AddTransient<IJwtTokenService, JwtTokenService>();
 builder.Services.AddDbContext<XSchedDbContext>(options =>
 {
