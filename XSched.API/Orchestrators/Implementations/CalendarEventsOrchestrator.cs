@@ -45,6 +45,7 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         Guid calendarEventId)
     {
         calendarEvent.Id = calendarEventId;
+        if (calendarEvent.AllDay.GetValueOrDefault()) calendarEvent.EndDate = calendarEvent.StartDate;
         return CreateCalendarEventAsync(user, calendarEvent);
     }
 
@@ -52,6 +53,7 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         CalendarEvent calendarEventDb)
     {
         calendarEvent.Id = calendarEventDb.Id;
+        if (calendarEvent.AllDay.GetValueOrDefault()) calendarEvent.EndDate = calendarEvent.StartDate;
         _dbContext.Entry(calendarEventDb).CurrentValues.SetValues(calendarEvent);
         await _dbContext.SaveChangesAsync();
 
