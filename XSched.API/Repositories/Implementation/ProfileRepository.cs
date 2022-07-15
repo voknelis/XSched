@@ -24,6 +24,11 @@ public class ProfileRepository : IProfileRepository
         return await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId && p.Id == profileId);
     }
 
+    public Task<UserProfile?> GetDefaultUserProfileAsync(string userId)
+    {
+        return _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId && p.IsDefault);
+    }
+
     public void CreateProfile(UserProfile profile)
     {
         _dbContext.Profiles.Add(profile);

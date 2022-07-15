@@ -4,16 +4,19 @@ using XSched.API.DbContexts;
 using XSched.API.Entities;
 using XSched.API.Models;
 using XSched.API.Orchestrators.Interfaces;
+using XSched.API.Repositories.Interfaces;
 
 namespace XSched.API.Orchestrators.Implementations;
 
 public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
 {
     private readonly XSchedDbContext _dbContext;
+    private readonly IProfileRepository _profileRepository;
 
-    public CalendarEventsOrchestrator(XSchedDbContext dbContext)
+    public CalendarEventsOrchestrator(XSchedDbContext dbContext, IProfileRepository profileRepository)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _profileRepository = profileRepository;
     }
 
     public IQueryable<CalendarEvent> GetUserCalendarEvents(ApplicationUser user)
@@ -35,9 +38,13 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
 
     public async Task<CalendarEvent> CreateCalendarEventAsync(ApplicationUser user, CalendarEvent calendarEvent)
     {
-        // TODO: assign default calendar profile
+        if (calendarEvent.AllDay.GetValueOrDefault()) calendarEvent.EndDate = calendarEvent.StartDate;
+
+        if (calendarEvent.ProfileId == Guid.Empty) await AssignDefaultProfile(user.Id, calendarEvent);
+
         _dbContext.CalendarEvents.Add(calendarEvent);
         await _dbContext.SaveChangesAsync();
+
         return calendarEvent;
     }
 
@@ -45,7 +52,7 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         Guid calendarEventId)
     {
         calendarEvent.Id = calendarEventId;
-        if (calendarEvent.AllDay.GetValueOrDefault()) calendarEvent.EndDate = calendarEvent.StartDate;
+
         return CreateCalendarEventAsync(user, calendarEvent);
     }
 
@@ -53,7 +60,18 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         CalendarEvent calendarEventDb)
     {
         calendarEvent.Id = calendarEventDb.Id;
+
         if (calendarEvent.AllDay.GetValueOrDefault()) calendarEvent.EndDate = calendarEvent.StartDate;
+
+        // check attempt to assign event to a different user
+        var profile = await _profileRepository.GetUserProfileByIdAsync(user.Id, calendarEvent.ProfileId);
+        if (profile == null)
+        {
+            // restore profiles value
+            calendarEvent.ProfileId = calendarEventDb.ProfileId;
+            calendarEvent.Profile = calendarEventDb.Profile;
+        }
+
         _dbContext.Entry(calendarEventDb).CurrentValues.SetValues(calendarEvent);
         await _dbContext.SaveChangesAsync();
 
@@ -63,6 +81,21 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
     public async Task<CalendarEvent> PartiallyUpdateCalendarEventAsync(ApplicationUser user, Delta<CalendarEvent> patch,
         CalendarEvent calendarEventDb)
     {
+        patch.TrySetPropertyValue("Id", calendarEventDb.Id);
+
+        var newProfileId = patch.GetInstance().ProfileId;
+        if (newProfileId != Guid.Empty)
+        {
+            // check attempt to assign event to a different user
+            var profile = await _profileRepository.GetUserProfileByIdAsync(user.Id, newProfileId);
+            if (profile == null)
+            {
+                // restore profiles value
+                patch.TrySetPropertyValue("ProfileId", calendarEventDb.ProfileId);
+                patch.TrySetPropertyValue("Profile", calendarEventDb.Profile);
+            }
+        }
+
         patch.Patch(calendarEventDb);
         await _dbContext.SaveChangesAsync();
 
@@ -77,5 +110,16 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
 
         _dbContext.CalendarEvents.Remove(calendarEvent);
         await _dbContext.SaveChangesAsync();
+    }
+
+    private async Task AssignDefaultProfile(string userId, CalendarEvent calendarEvent)
+    {
+        var profile = await _profileRepository.GetDefaultUserProfileAsync(userId);
+        if (profile == null)
+            throw new FrontendException(
+                "Cannot find default profile for the event. Please specify ProfileId field.");
+
+        calendarEvent.ProfileId = profile.Id;
+        calendarEvent.Profile = profile;
     }
 }

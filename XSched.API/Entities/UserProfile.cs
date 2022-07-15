@@ -16,4 +16,6 @@ public class UserProfile
     public string UserId { get; set; }
 
     public ApplicationUser User { get; set; }
+
+    public bool IsDefault { get; set; }
 }

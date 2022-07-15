@@ -7,6 +7,7 @@ using XSched.API.DbContexts;
 using XSched.API.Entities;
 using XSched.API.Models;
 using XSched.API.Orchestrators.Implementations;
+using XSched.API.Repositories.Implementation;
 using XSched.API.Tests.Helpers;
 
 namespace XSched.API.Tests.Orchestrators;
@@ -15,6 +16,7 @@ public class CalendarEventsOrchestratorTests
 {
     private Random _random;
     private Mock<XSchedDbContext> _dbContextMock;
+    private ProfileRepository _profileRepository;
     private CalendarEventsOrchestrator _eventsOrchestrator;
 
     [SetUp]
@@ -22,6 +24,7 @@ public class CalendarEventsOrchestratorTests
     {
         _random = new Random();
         _dbContextMock = GetDbContextMock();
+        _profileRepository = new ProfileRepository(_dbContextMock.Object);
         _eventsOrchestrator = GetCalendarEventsOrchestrator();
     }
 
@@ -479,7 +482,7 @@ public class CalendarEventsOrchestratorTests
 
     private CalendarEventsOrchestrator GetCalendarEventsOrchestrator()
     {
-        return new CalendarEventsOrchestrator(_dbContextMock.Object);
+        return new CalendarEventsOrchestrator(_dbContextMock.Object, _profileRepository);
     }
 
     private string GetRandomString(bool longString = false)

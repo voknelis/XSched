@@ -32,6 +32,9 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
     public virtual async Task CreateUserProfile(ApplicationUser user, UserProfile profile)
     {
         profile.UserId = user.Id;
+
+        if (profile.IsDefault) await ResetDefaultUserProfileState(user);
+
         _profileRepository.CreateProfile(profile);
         await _profileRepository.SaveChangesAsync();
     }
@@ -40,6 +43,9 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
     {
         profile.Id = profileDb.Id;
         profile.UserId = profileDb.UserId;
+
+        if (profile.IsDefault) await ResetDefaultUserProfileState(user);
+
         _profileRepository.UpdateProfile(profileDb, profile);
         await _profileRepository.SaveChangesAsync();
     }
@@ -47,6 +53,9 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
     public virtual async Task<UserProfile> PartiallyUpdateUserProfile(ApplicationUser user, Delta<UserProfile> patch,
         UserProfile profileDb)
     {
+        var profile = patch.GetInstance();
+        if (profile.IsDefault) await ResetDefaultUserProfileState(user);
+
         patch.Patch(profileDb);
         await _profileRepository.SaveChangesAsync();
 
@@ -56,9 +65,19 @@ public class ProfilesOrchestrator : IProfilesOrchestrator
     public async Task DeleteUserProfile(ApplicationUser user, Guid profileId)
     {
         var profile = await _profileRepository.GetUserProfileByIdAsync(user.Id, profileId);
+
         if (profile == null)
             throw new FrontendException($"Requested profile was not found", StatusCodes.Status404NotFound);
+
+        if (profile.IsDefault) throw new FrontendException("Default profile cannot be deleted.");
+
         _profileRepository.DeleteProfile(profile);
         await _profileRepository.SaveChangesAsync();
+    }
+
+    private async Task ResetDefaultUserProfileState(ApplicationUser user)
+    {
+        var profiles = await _profileRepository.GetUserProfiles(user.Id).ToListAsync();
+        foreach (var profile in profiles) profile.IsDefault = false;
     }
 }
