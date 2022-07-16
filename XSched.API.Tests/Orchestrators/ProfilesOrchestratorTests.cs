@@ -120,6 +120,36 @@ public class ProfilesOrchestratorTests
         Assert.That(userProfile.UserId, Is.EqualTo(user!.Id));
     }
 
+    [Test]
+    public async Task CreateUserProfileWithDefaultProfileTest()
+    {
+        var user = _dbContextMock.Object.Users.Last() as ApplicationUser;
+
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
+        var userProfile = new UserProfile()
+        {
+            Id = Guid.NewGuid(),
+            Title = _random.Next(100000, 999999).ToString(),
+            IsDefault = true
+        };
+
+        var profilesBeforeCheck =
+            await _dbContextMock.Object.Profiles.Where(p => p.UserId == user!.Id).ToListAsync();
+        Assert.True(profilesBeforeCheck[0].IsDefault);
+        Assert.False(profilesBeforeCheck[1].IsDefault);
+
+        await _profileOrchestrator.CreateUserProfile(user!, userProfile);
+
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
+        var profilesToCheck = await _dbContextMock.Object.Profiles
+            .Where(p => p.UserId == user!.Id).ToListAsync();
+
+        Assert.False(profilesToCheck[0].IsDefault);
+        Assert.False(profilesToCheck[1].IsDefault);
+        Assert.True(profilesToCheck[2].IsDefault);
+    }
+
 
     [Test]
     public async Task CreateAndUpdateUserProfileTest()
@@ -160,6 +190,59 @@ public class ProfilesOrchestratorTests
     }
 
     [Test]
+    public async Task UpdateUserProfileWithDefaultProfileTest()
+    {
+        var user = _dbContextMock.Object.Users.Last() as ApplicationUser;
+
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
+
+        var userProfileDb = profilesDbSet.Last();
+        var userProfile = profilesDbSet.Last().Clone();
+        userProfile.IsDefault = true;
+
+        var profilesBeforeCheck =
+            await _dbContextMock.Object.Profiles.Where(p => p.UserId == user!.Id).ToListAsync();
+        Assert.True(profilesBeforeCheck[0].IsDefault);
+        Assert.False(profilesBeforeCheck[1].IsDefault);
+
+        await _profileOrchestrator.UpdateUserProfile(user!, userProfile, userProfileDb);
+
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
+        var profilesToCheck = await _dbContextMock.Object.Profiles
+            .Where(p => p.UserId == user!.Id).ToListAsync();
+        Assert.False(profilesToCheck[0].IsDefault);
+        Assert.True(profilesToCheck[1].IsDefault);
+    }
+
+    [Test]
+    public async Task PartiallyUpdateUserProfileWithDefaultProfileTest()
+    {
+        var user = _dbContextMock.Object.Users.Last() as ApplicationUser;
+
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
+
+        var userProfileDb = profilesDbSet.Last();
+        var patch = new Delta<UserProfile>();
+        patch.TrySetPropertyValue("Id", userProfileDb.Id);
+        patch.TrySetPropertyValue("IsDefault", true);
+
+        var profilesBeforeCheck =
+            await _dbContextMock.Object.Profiles.Where(p => p.UserId == user!.Id).ToListAsync();
+        Assert.True(profilesBeforeCheck[0].IsDefault);
+        Assert.False(profilesBeforeCheck[1].IsDefault);
+
+        await _profileOrchestrator.PartiallyUpdateUserProfile(user!, patch, userProfileDb);
+
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
+        var profilesToCheck = await _dbContextMock.Object.Profiles
+            .Where(p => p.UserId == user!.Id).ToListAsync();
+        Assert.False(profilesToCheck[0].IsDefault);
+        Assert.True(profilesToCheck[1].IsDefault);
+    }
+
+    [Test]
     public async Task CreateAndPartiallyUpdateUserProfileTest()
     {
         var user = _dbContextMock.Object.Users.FirstOrDefault() as ApplicationUser;
@@ -196,11 +279,11 @@ public class ProfilesOrchestratorTests
     [Test]
     public async Task DeleteUserProfileTest()
     {
-        var user = _dbContextMock.Object.Users.FirstOrDefault() as ApplicationUser;
+        var user = _dbContextMock.Object.Users.Last() as ApplicationUser;
 
         var profilesDbSet = _dbContextMock.Object.Profiles;
         var profilesInitialCount = profilesDbSet.Count();
-        var userProfile = profilesDbSet.FirstOrDefault();
+        var userProfile = profilesDbSet.Last();
 
         await _profileOrchestrator.DeleteUserProfile(user!, userProfile!.Id);
 
@@ -208,6 +291,27 @@ public class ProfilesOrchestratorTests
         var throws = Assert.ThrowsAsync<FrontendException>(
             async () => { await _profileOrchestrator.GetUserProfile(user!, userProfile!.Id); });
         Assert.NotNull(throws);
+    }
+
+    [Test]
+    public void DeleteDefaultUserProfileErrorTest()
+    {
+        var user = _dbContextMock.Object.Users.First() as ApplicationUser;
+
+        var profilesDbSet = _dbContextMock.Object.Profiles;
+        var profilesInitialCount = profilesDbSet.Count();
+        var userProfile = profilesDbSet.First();
+
+        var actualMessage = "Default profile cannot be deleted.";
+        var throws = Assert.ThrowsAsync<FrontendException>(
+            async () => { await _profileOrchestrator.DeleteUserProfile(user!, userProfile!.Id); },
+            $"Expected the following exception message: {actualMessage}");
+
+        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
+        Assert.NotNull(throws);
+        Assert.That(throws!.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
+        Assert.That(throws.Messages.Count(), Is.EqualTo(1));
+        Assert.That(throws.Messages.First(), Is.EqualTo(actualMessage));
     }
 
     [Test]
@@ -284,14 +388,16 @@ public class ProfilesOrchestratorTests
                 Id = Guid.NewGuid(),
                 Title = _random.Next(100000, 999999).ToString(),
                 User = firstUser,
-                UserId = firstUser!.Id
+                UserId = firstUser!.Id,
+                IsDefault = true
             },
             new()
             {
                 Id = Guid.NewGuid(),
                 Title = _random.Next(100000, 999999).ToString(),
                 User = secondUser,
-                UserId = secondUser!.Id
+                UserId = secondUser!.Id,
+                IsDefault = true
             },
             new()
             {

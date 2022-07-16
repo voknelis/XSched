@@ -19,14 +19,14 @@ public class ProfileRepository : IProfileRepository
         return _dbContext.Profiles.Where(p => p.UserId == userId);
     }
 
-    public async Task<UserProfile?> GetUserProfileByIdAsync(string userId, Guid profileId)
+    public Task<UserProfile?> GetUserProfileByIdAsync(string userId, Guid profileId)
     {
-        return await _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId && p.Id == profileId);
+        return _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId && p.Id == profileId);
     }
 
     public Task<UserProfile?> GetDefaultUserProfileAsync(string userId)
     {
-        return _dbContext.Profiles.FirstOrDefaultAsync(p => p.UserId == userId && p.IsDefault);
+        return _dbContext.Profiles.SingleOrDefaultAsync(p => p.UserId == userId && p.IsDefault);
     }
 
     public void CreateProfile(UserProfile profile)

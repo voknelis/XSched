@@ -1,4 +1,5 @@
-﻿using EntityFrameworkCoreMock;
+﻿using System.Reflection;
+using EntityFrameworkCoreMock;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using XSched.API.DbContexts;
@@ -12,14 +13,14 @@ public class ProfileRepositoryTests
 {
     private Random _random;
     private Mock<XSchedDbContext> _dbContextMock;
-    private Mock<ProfileRepository> _profileRepositoryMock;
+    private ProfileRepository _profileRepository;
 
     [SetUp]
     public void Setup()
     {
         _random = new Random();
         _dbContextMock = GetDbContextMock();
-        _profileRepositoryMock = GetProfileRepositoryMock();
+        _profileRepository = GetProfileRepository();
     }
 
     [Test]
@@ -29,9 +30,9 @@ public class ProfileRepositoryTests
         var firstUser = usersDbSet.FirstOrDefault() as ApplicationUser;
         var secondUser = usersDbSet.ToList()[1] as ApplicationUser;
 
-        var profilesFirstUser = _profileRepositoryMock.Object.GetUserProfiles(firstUser!.Id);
-        var profilesSecondUser = _profileRepositoryMock.Object.GetUserProfiles(secondUser!.Id);
-        var profilesUnknownUser = _profileRepositoryMock.Object.GetUserProfiles(Guid.NewGuid().ToString());
+        var profilesFirstUser = _profileRepository.GetUserProfiles(firstUser!.Id);
+        var profilesSecondUser = _profileRepository.GetUserProfiles(secondUser!.Id);
+        var profilesUnknownUser = _profileRepository.GetUserProfiles(Guid.NewGuid().ToString());
 
         Assert.That(profilesFirstUser.Count(), Is.EqualTo(1));
         Assert.That(profilesSecondUser.Count(), Is.EqualTo(2));
@@ -45,7 +46,7 @@ public class ProfileRepositoryTests
 
         var targetProfile = _dbContextMock.Object.Profiles.FirstOrDefault()!;
 
-        var repository = _profileRepositoryMock.Object;
+        var repository = _profileRepository;
         var profile = await repository.GetUserProfileByIdAsync(user!.Id, targetProfile.Id);
         Assert.IsNotNull(profile);
         Assert.That(profile, Is.EqualTo(targetProfile));
@@ -58,6 +59,46 @@ public class ProfileRepositoryTests
 
         profile = await repository.GetUserProfileByIdAsync(Guid.NewGuid().ToString(), Guid.NewGuid());
         Assert.IsNull(profile);
+    }
+
+    [Test]
+    public async Task GetDefaultUserProfileTest()
+    {
+        var user = _dbContextMock.Object.Users.Last() as ApplicationUser;
+
+        var targetProfile = _dbContextMock.Object.Profiles.ToList()[1];
+        var profile = await _profileRepository.GetDefaultUserProfileAsync(user!.Id);
+
+        Assert.NotNull(profile);
+        Assert.That(profile, Is.EqualTo(targetProfile));
+    }
+
+    [Test]
+    public async Task GetEmptyDefaultUserProfileTest()
+    {
+        var user = _dbContextMock.Object.Users.Last() as ApplicationUser;
+
+        var defaultProfiles = _dbContextMock.Object.Profiles.Where(p => p.UserId == user!.Id).ToList();
+        foreach (var defaultProfile in defaultProfiles) defaultProfile.IsDefault = false;
+
+        var profile = await _profileRepository.GetDefaultUserProfileAsync(user!.Id);
+
+        Assert.Null(profile);
+    }
+
+    [Test]
+    public void GetMultipleDefaultUserProfilesTest()
+    {
+        var user = _dbContextMock.Object.Users.Last() as ApplicationUser;
+
+        var defaultProfiles = _dbContextMock.Object.Profiles.Where(p => p.UserId == user!.Id).ToList();
+        foreach (var defaultProfile in defaultProfiles) defaultProfile.IsDefault = true;
+        _dbContextMock.Object.SaveChanges();
+
+        var throws = Assert.ThrowsAsync<TargetInvocationException>(
+            async () => { await _profileRepository.GetDefaultUserProfileAsync(user!.Id); });
+
+        Assert.NotNull(throws);
     }
 
     [Test]
@@ -74,8 +115,7 @@ public class ProfileRepositoryTests
             UserId = user!.Id
         };
 
-        var repository = _profileRepositoryMock.Object;
-        repository.CreateProfile(userProfile);
+        _profileRepository.CreateProfile(userProfile);
         _dbContextMock.Object.SaveChanges();
         Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
     }
@@ -94,7 +134,7 @@ public class ProfileRepositoryTests
             UserId = user!.Id
         };
 
-        var repository = _profileRepositoryMock.Object;
+        var repository = _profileRepository;
         repository.CreateProfile(userProfile);
         _dbContextMock.Object.SaveChanges();
         Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount + 1));
@@ -124,7 +164,7 @@ public class ProfileRepositoryTests
 
         var targetProfile = profilesDbSet.FirstOrDefault()!;
 
-        _profileRepositoryMock.Object.DeleteProfile(targetProfile);
+        _profileRepository.DeleteProfile(targetProfile);
         _dbContextMock.Object.SaveChanges();
         Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount - 1));
 
@@ -174,14 +214,16 @@ public class ProfileRepositoryTests
                 Id = Guid.NewGuid(),
                 Title = _random.Next(100000, 999999).ToString(),
                 User = firstUser,
-                UserId = firstUser!.Id
+                UserId = firstUser!.Id,
+                IsDefault = true
             },
             new()
             {
                 Id = Guid.NewGuid(),
                 Title = _random.Next(100000, 999999).ToString(),
                 User = secondUser,
-                UserId = secondUser!.Id
+                UserId = secondUser!.Id,
+                IsDefault = true
             },
             new()
             {
@@ -194,9 +236,8 @@ public class ProfileRepositoryTests
         dbContextMock.CreateDbSetMock(x => x.Profiles, userProfiles);
     }
 
-    private Mock<ProfileRepository> GetProfileRepositoryMock()
+    private ProfileRepository GetProfileRepository()
     {
-        var repository = new Mock<ProfileRepository>(_dbContextMock.Object) { CallBase = true };
-        return repository;
+        return new ProfileRepository(_dbContextMock.Object);
     }
 }
