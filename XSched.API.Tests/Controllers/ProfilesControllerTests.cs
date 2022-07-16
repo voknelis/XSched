@@ -43,15 +43,6 @@ public class ProfilesControllerTest
     }
 
     [Test]
-    public async Task GetUserProfilesInvalidUserErrorTest()
-    {
-        _profilesController = GetProfilesControllerMock(false);
-        var result = await _profilesController.Object.GetUserProfiles() as UnauthorizedResult;
-        Assert.NotNull(result);
-        Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
-    }
-
-    [Test]
     public async Task GetUserProfileTest()
     {
         _profilesController = GetProfilesControllerMock();
@@ -64,18 +55,6 @@ public class ProfilesControllerTest
 
         var userProfile = result.Value as UserProfile;
         Assert.That(userProfile!, Is.EqualTo(targetProfile));
-    }
-
-    [Test]
-    public async Task GetUserProfileInvalidUserErrorTest()
-    {
-        _profilesController = GetProfilesControllerMock(false);
-
-        var targetProfile = _dbContextMock.Object.Profiles.FirstOrDefault()!;
-
-        var result = await _profilesController.Object.GetUserProfile(targetProfile.Id) as UnauthorizedResult;
-        Assert.NotNull(result);
-        Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
     }
 
     [Test]
@@ -259,30 +238,6 @@ public class ProfilesControllerTest
     }
 
     [Test]
-    public async Task CreateAndPartiallyUpdateUserProfileInvalidUserErrorTest()
-    {
-        _profilesController = GetProfilesControllerMock(false);
-
-        var profilesDbSet = _dbContextMock.Object.Profiles;
-        var profilesInitialCount = profilesDbSet.Count();
-        var userProfile = new Delta<UserProfile>();
-
-        var result =
-            await _profilesController.Object.PartiallyUpdateUserProfile(Guid.Empty, userProfile) as UnauthorizedResult;
-
-        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
-        Assert.NotNull(result);
-        Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
-
-        _profileOrchestrator.Verify(x => x.CreateUserProfile(It.IsAny<ApplicationUser>(), It.IsAny<UserProfile>()),
-            Times.Never);
-        _profileOrchestrator.Verify(
-            x => x.PartiallyUpdateUserProfile(It.IsAny<ApplicationUser>(), It.IsAny<Delta<UserProfile>>(),
-                It.IsAny<UserProfile>()),
-            Times.Never);
-    }
-
-    [Test]
     public async Task DeleteUserProfileTest()
     {
         _profilesController = GetProfilesControllerMock();
@@ -296,22 +251,6 @@ public class ProfilesControllerTest
 
         Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount - 1));
         Assert.Null(findProfile);
-    }
-
-    [Test]
-    public async Task DeleteUserProfileInvalidUserErrorTest()
-    {
-        _profilesController = GetProfilesControllerMock(false);
-
-        var profilesDbSet = _dbContextMock.Object.Profiles;
-        var profilesInitialCount = profilesDbSet.Count();
-
-        var result =
-            await _profilesController.Object.DeleteUserProfile(Guid.Empty) as UnauthorizedResult;
-
-        Assert.That(profilesDbSet.Count(), Is.EqualTo(profilesInitialCount));
-        Assert.NotNull(result);
-        Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.Status401Unauthorized));
     }
 
     private Mock<XSchedDbContext> GetDbContextMock()

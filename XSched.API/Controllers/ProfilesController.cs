@@ -28,7 +28,6 @@ public class ProfilesController : ODataController
     public async Task<IActionResult> GetUserProfiles()
     {
         var user = await GetCurrentUser();
-        if (user == null) return Unauthorized();
 
         return Ok(await _profilesOrchestrator.GetUserProfiles(user));
     }
@@ -38,7 +37,6 @@ public class ProfilesController : ODataController
     public async Task<IActionResult> GetUserProfile(Guid profileId)
     {
         var user = await GetCurrentUser();
-        if (user == null) return Unauthorized();
 
         return Ok(await _profilesOrchestrator.GetUserProfile(user, profileId));
     }
@@ -85,7 +83,6 @@ public class ProfilesController : ODataController
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var user = await GetCurrentUser();
-        if (user == null) return Unauthorized();
 
         try
         {
@@ -105,16 +102,15 @@ public class ProfilesController : ODataController
     public async Task<IActionResult> DeleteUserProfile(Guid profileId)
     {
         var user = await GetCurrentUser();
-        if (user == null) return Unauthorized();
 
         _profilesOrchestrator.DeleteUserProfile(user, profileId);
         return NoContent();
     }
 
     [ApiExplorerSettings(IgnoreApi = true)]
-    public virtual async Task<ApplicationUser?> GetCurrentUser()
+    public virtual async Task<ApplicationUser> GetCurrentUser()
     {
-        var username = HttpContext.User.Identity.Name;
+        var username = HttpContext.User.Identity!.Name;
         var user = await _userManager.FindByNameAsync(username);
         return user;
     }

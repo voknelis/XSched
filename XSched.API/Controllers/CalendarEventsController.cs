@@ -29,7 +29,6 @@ public class CalendarEventsController : ODataController
     public async Task<IActionResult> GetUserCalendarEvents()
     {
         var user = await GetCurrentUser();
-        if (user == null) return Unauthorized();
 
         return Ok(_eventsOrchestrator.GetUserCalendarEvents(user));
     }
@@ -39,7 +38,6 @@ public class CalendarEventsController : ODataController
     public async Task<IActionResult> GetUserCalendarEvent(Guid eventId)
     {
         var user = await GetCurrentUser();
-        if (user == null) return Unauthorized();
 
         var result = _eventsOrchestrator.GetUserCalendarEvent(user, eventId);
         return Ok(SingleResult.Create(result));
@@ -52,7 +50,6 @@ public class CalendarEventsController : ODataController
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var user = await GetCurrentUser();
-        if (user == null) return Unauthorized();
 
         var result = await _eventsOrchestrator.CreateCalendarEventAsync(user, calendarEvent);
         return Created(result);
@@ -65,7 +62,6 @@ public class CalendarEventsController : ODataController
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var user = await GetCurrentUser();
-        if (user == null) return Unauthorized();
 
         var calendarEventDb = await _eventsOrchestrator.GetUserCalendarEventAsync(user, eventId);
         if (calendarEventDb == null)
@@ -88,7 +84,6 @@ public class CalendarEventsController : ODataController
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var user = await GetCurrentUser();
-        if (user == null) return Unauthorized();
 
         var calendarEventDb = await _eventsOrchestrator.GetUserCalendarEventAsync(user, eventId);
         if (calendarEventDb == null)
@@ -108,16 +103,15 @@ public class CalendarEventsController : ODataController
     public async Task<IActionResult> DeleteUserCalendarEvent(Guid eventId)
     {
         var user = await GetCurrentUser();
-        if (user == null) return Unauthorized();
 
         await _eventsOrchestrator.DeleteCalendarEventAsync(user, eventId);
         return NoContent();
     }
 
     [ApiExplorerSettings(IgnoreApi = true)]
-    public virtual async Task<ApplicationUser?> GetCurrentUser()
+    public virtual async Task<ApplicationUser> GetCurrentUser()
     {
-        var username = HttpContext.User.Identity.Name;
+        var username = HttpContext.User.Identity!.Name;
         var user = await _userManager.FindByNameAsync(username);
         return user;
     }
