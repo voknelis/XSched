@@ -19,17 +19,20 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IJwtTokenService _tokenService;
     private readonly XSchedDbContext _dbContext;
+    private readonly IProfilesOrchestrator _profilesOrchestrator;
 
     public AuthenticateOrchestrator(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         IJwtTokenService tokenService,
-        XSchedDbContext dbContext)
+        XSchedDbContext dbContext,
+        IProfilesOrchestrator profilesOrchestrator)
     {
         _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
         _roleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
         _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _profilesOrchestrator = profilesOrchestrator ?? throw new ArgumentNullException(nameof(profilesOrchestrator));
     }
 
 
@@ -42,7 +45,21 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
             SecurityStamp = Guid.NewGuid().ToString()
         };
 
-        return await _userManager.CreateAsync(newUser, model.Password);
+        var identityResult = await _userManager.CreateAsync(newUser, model.Password);
+
+        if (identityResult.Succeeded)
+        {
+            // create default permission
+            var defaultProfile = new UserProfile()
+            {
+                Title = "Default profile",
+                UserId = newUser.Id,
+                IsDefault = true
+            };
+            await _profilesOrchestrator.CreateUserProfile(newUser, defaultProfile);
+        }
+
+        return identityResult;
     }
 
     public async Task<TokenResponse> Login(ApplicationUser user, ClientConnectionMetadata clientMeta)
