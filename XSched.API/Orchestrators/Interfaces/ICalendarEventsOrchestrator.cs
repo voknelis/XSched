@@ -5,6 +5,7 @@ namespace XSched.API.Orchestrators.Interfaces;
 
 public interface ICalendarEventsOrchestrator
 {
+    public Task<CalendarEvent?> GetCalendarEventAsync(Guid calendarEventId);
     public IQueryable<CalendarEvent> GetUserCalendarEvents(ApplicationUser user);
     public IQueryable<CalendarEvent> GetUserCalendarEvent(ApplicationUser user, Guid calendarEventId);
     public Task<CalendarEvent?> GetUserCalendarEventAsync(ApplicationUser user, Guid calendarEventId);

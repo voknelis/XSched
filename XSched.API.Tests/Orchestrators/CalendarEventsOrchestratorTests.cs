@@ -154,6 +154,64 @@ public class CalendarEventsOrchestratorTests
         Assert.That(calendarEvent.ProfileId, Is.EqualTo(calendarEventCopy.ProfileId));
     }
 
+
+    [Test]
+    public async Task CreateUserCalendarEventWithDefaultProfileTest()
+    {
+        var profile = _dbContextMock.Object.Profiles.First();
+        var user = profile.User;
+
+        var eventsDbSet = _dbContextMock.Object.CalendarEvents;
+        var eventCount = eventsDbSet.Count();
+
+        var calendarEvent = new CalendarEvent()
+        {
+            Id = Guid.NewGuid(),
+            Title = GetRandomString(false),
+            Description = GetRandomString()
+        };
+        var calendarEventCopy = calendarEvent.Clone();
+
+        calendarEvent = await _eventsOrchestrator.CreateCalendarEventAsync(user, calendarEvent);
+
+        Assert.That(eventsDbSet.Count(), Is.EqualTo(eventCount + 1));
+        Assert.That(calendarEvent.Id, Is.EqualTo(calendarEventCopy.Id));
+        Assert.That(calendarEvent.Title, Is.EqualTo(calendarEventCopy.Title));
+        Assert.That(calendarEvent.Description, Is.EqualTo(calendarEventCopy.Description));
+        Assert.That(calendarEvent.ProfileId, Is.EqualTo(profile.Id));
+        Assert.That(calendarEvent.Profile, Is.EqualTo(profile));
+    }
+
+    [Test]
+    public async Task CreateUserCalendarEventWithDefaultProfileNotFoundTest()
+    {
+        var profile = _dbContextMock.Object.Profiles.First();
+        var user = profile.User;
+
+        profile.IsDefault = false;
+        await _dbContextMock.Object.SaveChangesAsync();
+
+        var eventsDbSet = _dbContextMock.Object.CalendarEvents;
+        var eventCount = eventsDbSet.Count();
+
+        var calendarEvent = new CalendarEvent()
+        {
+            Id = Guid.NewGuid(),
+            Title = GetRandomString(false),
+            Description = GetRandomString()
+        };
+
+        var actualMessage = "Cannot find default profile for the event. Please specify ProfileId field.";
+        var throws = Assert.ThrowsAsync<FrontendException>(
+            async () => { await _eventsOrchestrator.CreateCalendarEventAsync(user, calendarEvent); },
+            $"Expected the following exception message: {actualMessage}");
+
+        Assert.That(eventsDbSet.Count(), Is.EqualTo(eventCount));
+        Assert.NotNull(throws);
+        Assert.That(throws!.Messages.Count(), Is.EqualTo(1));
+        Assert.That(throws!.Messages.First(), Is.EqualTo(actualMessage));
+    }
+
     [Test]
     public async Task CreateUserCalendarEventWithIdTest()
     {
@@ -426,14 +484,16 @@ public class CalendarEventsOrchestratorTests
                 Id = Guid.NewGuid(),
                 Title = _random.Next(100000, 999999).ToString(),
                 User = firstUser,
-                UserId = firstUser!.Id
+                UserId = firstUser!.Id,
+                IsDefault = true
             },
             new()
             {
                 Id = Guid.NewGuid(),
                 Title = _random.Next(100000, 999999).ToString(),
                 User = secondUser,
-                UserId = secondUser!.Id
+                UserId = secondUser!.Id,
+                IsDefault = true
             },
             new()
             {

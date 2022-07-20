@@ -19,6 +19,11 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         _profileRepository = profileRepository;
     }
 
+    public Task<CalendarEvent?> GetCalendarEventAsync(Guid calendarEventId)
+    {
+        return _dbContext.CalendarEvents.Include(x => x.Profile).FirstOrDefaultAsync(e => e.Id == calendarEventId);
+    }
+
     public IQueryable<CalendarEvent> GetUserCalendarEvents(ApplicationUser user)
     {
         return _dbContext.CalendarEvents.Include(x => x.Profile).Where(e => e.Profile.UserId == user.Id);
@@ -63,15 +68,6 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
 
         if (calendarEvent.AllDay.GetValueOrDefault()) calendarEvent.EndDate = calendarEvent.StartDate;
 
-        // check attempt to assign event to a different user
-        var profile = await _profileRepository.GetUserProfileByIdAsync(user.Id, calendarEvent.ProfileId);
-        if (profile == null)
-        {
-            // restore profiles value
-            calendarEvent.ProfileId = calendarEventDb.ProfileId;
-            calendarEvent.Profile = calendarEventDb.Profile;
-        }
-
         _dbContext.Entry(calendarEventDb).CurrentValues.SetValues(calendarEvent);
         await _dbContext.SaveChangesAsync();
 
@@ -82,19 +78,6 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         CalendarEvent calendarEventDb)
     {
         patch.TrySetPropertyValue("Id", calendarEventDb.Id);
-
-        var newProfileId = patch.GetInstance().ProfileId;
-        if (newProfileId != Guid.Empty)
-        {
-            // check attempt to assign event to a different user
-            var profile = await _profileRepository.GetUserProfileByIdAsync(user.Id, newProfileId);
-            if (profile == null)
-            {
-                // restore profiles value
-                patch.TrySetPropertyValue("ProfileId", calendarEventDb.ProfileId);
-                patch.TrySetPropertyValue("Profile", calendarEventDb.Profile);
-            }
-        }
 
         patch.Patch(calendarEventDb);
         await _dbContext.SaveChangesAsync();

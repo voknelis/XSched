@@ -63,17 +63,18 @@ public class CalendarEventsController : ODataController
 
         var user = await GetCurrentUser();
 
-        var calendarEventDb = await _eventsOrchestrator.GetUserCalendarEventAsync(user, eventId);
+        var calendarEventDb = await _eventsOrchestrator.GetCalendarEventAsync(eventId);
         if (calendarEventDb == null)
         {
-            var result = await _eventsOrchestrator.CreateCalendarEventAsync(user, calendarEvent, eventId);
-            return Created(result);
+            var createResult = await _eventsOrchestrator.CreateCalendarEventAsync(user, calendarEvent, eventId);
+            return Created(createResult);
         }
-        else
-        {
-            var result = await _eventsOrchestrator.UpdateCalendarEventAsync(user, calendarEvent, calendarEventDb);
-            return Ok(result);
-        }
+
+        if (calendarEventDb.Profile.UserId != user.Id) return Forbid();
+
+
+        var updateResult = await _eventsOrchestrator.UpdateCalendarEventAsync(user, calendarEvent, calendarEventDb);
+        return Ok(updateResult);
     }
 
     [HttpPatch("({eventId})")]
@@ -85,18 +86,18 @@ public class CalendarEventsController : ODataController
 
         var user = await GetCurrentUser();
 
-        var calendarEventDb = await _eventsOrchestrator.GetUserCalendarEventAsync(user, eventId);
+        var calendarEventDb = await _eventsOrchestrator.GetCalendarEventAsync(eventId);
         if (calendarEventDb == null)
         {
             var calendarEvent = patch.GetInstance();
-            var result = await _eventsOrchestrator.CreateCalendarEventAsync(user, calendarEvent, eventId);
-            return Created(result);
+            var createResult = await _eventsOrchestrator.CreateCalendarEventAsync(user, calendarEvent, eventId);
+            return Created(createResult);
         }
-        else
-        {
-            var result = await _eventsOrchestrator.PartiallyUpdateCalendarEventAsync(user, patch, calendarEventDb);
-            return Ok(result);
-        }
+
+        if (calendarEventDb.Profile.UserId != user.Id) return Forbid();
+
+        var updateResult = await _eventsOrchestrator.PartiallyUpdateCalendarEventAsync(user, patch, calendarEventDb);
+        return Ok(updateResult);
     }
 
     [HttpDelete("({eventId})")]
