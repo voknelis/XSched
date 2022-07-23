@@ -31,7 +31,7 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
     }
 
 
-    public async Task<(IdentityResult, ApplicationUser)> Register(RegisterModel model)
+    public virtual async Task<(IdentityResult, ApplicationUser)> Register(RegisterModel model)
     {
         var newUser = new ApplicationUser()
         {
@@ -45,7 +45,7 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
         return (identityResult, newUser);
     }
 
-    public async Task<TokenResponse> Login(ApplicationUser user, ClientConnectionMetadata clientMeta)
+    public virtual async Task<TokenResponse> Login(ApplicationUser user, ClientConnectionMetadata clientMeta)
     {
         var userRoles = await _userManager.GetRolesAsync(user);
 
@@ -81,7 +81,7 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
         };
     }
 
-    public async Task<TokenResponse> RefreshToken(RefreshTokenModel model, ClientConnectionMetadata clientMeta)
+    public virtual async Task<TokenResponse> RefreshToken(RefreshTokenModel model, ClientConnectionMetadata clientMeta)
     {
         var principal = _tokenService.GetPrincipalFromExpiredToken(model.AccessToken);
         if (principal == null) throw new FrontendException("Invalid access token");

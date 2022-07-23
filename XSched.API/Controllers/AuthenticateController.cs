@@ -37,24 +37,23 @@ public class AuthenticateController : ControllerBase
         var result = tupleResult.Item1;
         var newUser = tupleResult.Item2;
 
-        if (result.Succeeded)
-            try
+        if (!result.Succeeded) return StatusCode(StatusCodes.Status500InternalServerError, result.Errors);
+
+        try
+        {
+            // create default user profile
+            var defaultProfile = new UserProfile()
             {
-                // create default user profile
-                var defaultProfile = new UserProfile()
-                {
-                    Title = "Default profile",
-                    UserId = newUser.Id,
-                    IsDefault = true
-                };
-                await _profilesOrchestrator.CreateUserProfile(newUser, defaultProfile);
-            }
-            catch
-            {
-                // TODO: Add logger
-            }
-        else
-            return StatusCode(StatusCodes.Status500InternalServerError, result.Errors);
+                Title = "Default profile",
+                UserId = newUser.Id,
+                IsDefault = true
+            };
+            await _profilesOrchestrator.CreateUserProfile(newUser, defaultProfile);
+        }
+        catch
+        {
+            // TODO: Add logger
+        }
 
         return Ok();
     }
@@ -83,7 +82,8 @@ public class AuthenticateController : ControllerBase
         return Ok(tokenResponse);
     }
 
-    private ClientConnectionMetadata GetClientMeta(string fingerprint)
+    [ApiExplorerSettings(IgnoreApi = true)]
+    public virtual ClientConnectionMetadata GetClientMeta(string fingerprint)
     {
         return new ClientConnectionMetadata()
         {

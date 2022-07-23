@@ -337,7 +337,7 @@ public class ProfilesControllerTest
         var user = returnUser ? _dbContextMock.Object.Users.FirstOrDefault() as ApplicationUser : null;
         var controllerMock = new Mock<ProfilesController>(userManagerMock.Object, _profileOrchestrator.Object)
             { CallBase = true };
-        controllerMock.Setup(x => x.GetCurrentUser()).ReturnsAsync(user);
+        controllerMock.Setup(x => x.GetCurrentUser()).ReturnsAsync(user!);
         return controllerMock;
     }
 }
