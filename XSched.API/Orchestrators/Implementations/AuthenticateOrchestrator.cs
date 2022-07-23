@@ -1,11 +1,9 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using XSched.API.DbContexts;
 using XSched.API.Dtos;
 using XSched.API.Entities;
-using XSched.API.Helpers;
 using XSched.API.Models;
 using XSched.API.Orchestrators.Interfaces;
 using XSched.API.Services.Interfaces;
@@ -19,24 +17,21 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IJwtTokenService _tokenService;
     private readonly XSchedDbContext _dbContext;
-    private readonly IProfilesOrchestrator _profilesOrchestrator;
 
     public AuthenticateOrchestrator(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         IJwtTokenService tokenService,
-        XSchedDbContext dbContext,
-        IProfilesOrchestrator profilesOrchestrator)
+        XSchedDbContext dbContext)
     {
         _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
         _roleManager = roleManager ?? throw new ArgumentNullException(nameof(roleManager));
         _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-        _profilesOrchestrator = profilesOrchestrator ?? throw new ArgumentNullException(nameof(profilesOrchestrator));
     }
 
 
-    public async Task<IdentityResult> Register(RegisterModel model)
+    public async Task<(IdentityResult, ApplicationUser)> Register(RegisterModel model)
     {
         var newUser = new ApplicationUser()
         {
@@ -47,19 +42,7 @@ public class AuthenticateOrchestrator : IAuthenticateOrchestrator
 
         var identityResult = await _userManager.CreateAsync(newUser, model.Password);
 
-        if (identityResult.Succeeded)
-        {
-            // create default permission
-            var defaultProfile = new UserProfile()
-            {
-                Title = "Default profile",
-                UserId = newUser.Id,
-                IsDefault = true
-            };
-            await _profilesOrchestrator.CreateUserProfile(newUser, defaultProfile);
-        }
-
-        return identityResult;
+        return (identityResult, newUser);
     }
 
     public async Task<TokenResponse> Login(ApplicationUser user, ClientConnectionMetadata clientMeta)

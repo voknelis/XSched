@@ -14,13 +14,17 @@ public class AuthenticateController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IAuthenticateOrchestrator _authenticateOrchestrator;
+    private readonly IProfilesOrchestrator _profilesOrchestrator;
 
     public AuthenticateController(
         UserManager<ApplicationUser> userManager,
-        IAuthenticateOrchestrator authenticateOrchestrator)
+        IAuthenticateOrchestrator authenticateOrchestrator,
+        IProfilesOrchestrator profilesOrchestrator)
     {
         _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
-        _authenticateOrchestrator = authenticateOrchestrator;
+        _authenticateOrchestrator = authenticateOrchestrator ??
+                                    throw new ArgumentNullException(nameof(authenticateOrchestrator));
+        _profilesOrchestrator = profilesOrchestrator ?? throw new ArgumentNullException(nameof(profilesOrchestrator));
     }
 
     [HttpPost("register")]
@@ -29,10 +33,30 @@ public class AuthenticateController : ControllerBase
         var userExists = await _userManager.FindByNameAsync(model.Username);
         if (userExists != null) throw new FrontendException("User already exist");
 
-        var result = await _authenticateOrchestrator.Register(model);
-        if (!result.Succeeded) return StatusCode(StatusCodes.Status500InternalServerError, result.Errors);
+        var tupleResult = await _authenticateOrchestrator.Register(model);
+        var result = tupleResult.Item1;
+        var newUser = tupleResult.Item2;
 
-        return NoContent();
+        if (result.Succeeded)
+            try
+            {
+                // create default user profile
+                var defaultProfile = new UserProfile()
+                {
+                    Title = "Default profile",
+                    UserId = newUser.Id,
+                    IsDefault = true
+                };
+                await _profilesOrchestrator.CreateUserProfile(newUser, defaultProfile);
+            }
+            catch
+            {
+                // TODO: Add logger
+            }
+        else
+            return StatusCode(StatusCodes.Status500InternalServerError, result.Errors);
+
+        return Ok();
     }
 
     [HttpPost("login")]

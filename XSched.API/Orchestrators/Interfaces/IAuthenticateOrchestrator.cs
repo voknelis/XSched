@@ -7,7 +7,7 @@ namespace XSched.API.Orchestrators.Interfaces;
 
 public interface IAuthenticateOrchestrator
 {
-    Task<IdentityResult> Register(RegisterModel model);
+    Task<(IdentityResult, ApplicationUser)> Register(RegisterModel model);
 
     Task<TokenResponse> Login(ApplicationUser user, ClientConnectionMetadata clientMeta);
 
