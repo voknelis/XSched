@@ -24,12 +24,12 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         return _dbContext.CalendarEvents.Include(x => x.Profile).FirstOrDefaultAsync(e => e.Id == calendarEventId);
     }
 
-    public IQueryable<CalendarEvent> GetUserCalendarEvents(ApplicationUser user)
+    public virtual IQueryable<CalendarEvent> GetUserCalendarEvents(ApplicationUser user)
     {
         return _dbContext.CalendarEvents.Include(x => x.Profile).Where(e => e.Profile.UserId == user.Id);
     }
 
-    public IQueryable<CalendarEvent> GetUserCalendarEvent(ApplicationUser user, Guid calendarEventId)
+    public virtual IQueryable<CalendarEvent> GetUserCalendarEvent(ApplicationUser user, Guid calendarEventId)
     {
         return _dbContext.CalendarEvents.Include(x => x.Profile)
             .Where(e => e.Profile.UserId == user.Id && e.Id == calendarEventId);
@@ -41,7 +41,7 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
             .FirstOrDefaultAsync(e => e.Profile.UserId == user.Id && e.Id == calendarEventId);
     }
 
-    public async Task<CalendarEvent> CreateCalendarEventAsync(ApplicationUser user, CalendarEvent calendarEvent)
+    public virtual async Task<CalendarEvent> CreateCalendarEventAsync(ApplicationUser user, CalendarEvent calendarEvent)
     {
         if (calendarEvent.AllDay.GetValueOrDefault()) calendarEvent.EndDate = calendarEvent.StartDate;
 
@@ -53,7 +53,7 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         return calendarEvent;
     }
 
-    public Task<CalendarEvent> CreateCalendarEventAsync(ApplicationUser user, CalendarEvent calendarEvent,
+    public virtual Task<CalendarEvent> CreateCalendarEventAsync(ApplicationUser user, CalendarEvent calendarEvent,
         Guid calendarEventId)
     {
         calendarEvent.Id = calendarEventId;
@@ -61,7 +61,7 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         return CreateCalendarEventAsync(user, calendarEvent);
     }
 
-    public async Task<CalendarEvent> UpdateCalendarEventAsync(ApplicationUser user, CalendarEvent calendarEvent,
+    public virtual async Task<CalendarEvent> UpdateCalendarEventAsync(ApplicationUser user, CalendarEvent calendarEvent,
         CalendarEvent calendarEventDb)
     {
         calendarEvent.Id = calendarEventDb.Id;
@@ -74,7 +74,8 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         return calendarEventDb;
     }
 
-    public async Task<CalendarEvent> PartiallyUpdateCalendarEventAsync(ApplicationUser user, Delta<CalendarEvent> patch,
+    public virtual async Task<CalendarEvent> PartiallyUpdateCalendarEventAsync(ApplicationUser user,
+        Delta<CalendarEvent> patch,
         CalendarEvent calendarEventDb)
     {
         patch.TrySetPropertyValue("Id", calendarEventDb.Id);
@@ -85,7 +86,7 @@ public class CalendarEventsOrchestrator : ICalendarEventsOrchestrator
         return calendarEventDb;
     }
 
-    public async Task DeleteCalendarEventAsync(ApplicationUser user, Guid calendarEventId)
+    public virtual async Task DeleteCalendarEventAsync(ApplicationUser user, Guid calendarEventId)
     {
         var calendarEvent = await GetUserCalendarEventAsync(user, calendarEventId);
         if (calendarEvent == null)
